@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env.local
+public/data/
+content/summaries.json
+*.log
+.DS_Store
+CLAUDE.md
+PLAN.md
