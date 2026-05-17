@@ -8,11 +8,11 @@ loadEnv();
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUTPUT = resolve(__dirname, "../public/data/stars.json");
 
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const GH_TOKEN = process.env.GH_TOKEN;
 const GITHUB_USERNAME = process.env.GITHUB_USERNAME;
 
-if (!GITHUB_TOKEN || !GITHUB_USERNAME) {
-  console.error("Missing GITHUB_TOKEN or GITHUB_USERNAME");
+if (!GH_TOKEN || !GITHUB_USERNAME) {
+  console.error("Missing GH_TOKEN or GITHUB_USERNAME");
   process.exit(1);
 }
 
@@ -23,7 +23,7 @@ async function fetchPage(page) {
   const url = `${API}/users/${GITHUB_USERNAME}/starred?per_page=${PER_PAGE}&page=${page}`;
   const res = await fetch(url, {
     headers: {
-      Authorization: `token ${GITHUB_TOKEN}`,
+      Authorization: `token ${GH_TOKEN}`,
       Accept: "application/vnd.github.v3+json",
       "User-Agent": "re-tag-stars",
     },
