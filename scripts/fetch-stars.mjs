@@ -9,10 +9,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUTPUT = resolve(__dirname, "../public/data/stars.json");
 
 const GH_TOKEN = process.env.GH_TOKEN;
-const GITHUB_USERNAME = process.env.GITHUB_USERNAME;
+const GH_USERNAME = process.env.GH_USERNAME;
 
-if (!GH_TOKEN || !GITHUB_USERNAME) {
-  console.error("Missing GH_TOKEN or GITHUB_USERNAME");
+if (!GH_TOKEN || !GH_USERNAME) {
+  console.error("Missing GH_TOKEN or GH_USERNAME");
   process.exit(1);
 }
 
@@ -20,7 +20,7 @@ const API = "https://api.github.com";
 const PER_PAGE = 100;
 
 async function fetchPage(page) {
-  const url = `${API}/users/${GITHUB_USERNAME}/starred?per_page=${PER_PAGE}&page=${page}`;
+  const url = `${API}/users/${GH_USERNAME}/starred?per_page=${PER_PAGE}&page=${page}`;
   const res = await fetch(url, {
     headers: {
       Authorization: `token ${GH_TOKEN}`,

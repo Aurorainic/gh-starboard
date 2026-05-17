@@ -9,7 +9,7 @@
 
 ```bash
 cp .env.example .env.local
-# 编辑 .env.local 填入 GH_TOKEN 和 GITHUB_USERNAME
+# 编辑 .env.local 填入 GH_TOKEN 和 GH_USERNAME
 pnpm install
 pnpm run fetch-stars
 pnpm run build-data
@@ -48,7 +48,7 @@ pnpm dev
 | 变量 | 必填 | 说明 |
 |------|------|------|
 | `GH_TOKEN` | 是 | GitHub personal access token |
-| `GITHUB_USERNAME` | 是 | 要抓取的 GitHub 用户名 |
+| `GH_USERNAME` | 是 | 要抓取的 GitHub 用户名 |
 | `AI_API_KEY` | 否 | AI API Key，不提供则跳过 AI 功能 |
 | `AI_API_BASE_URL` | 否 | API 地址 |
 | `AI_MODEL` | 否 | 模型名 |
@@ -73,7 +73,7 @@ AI 结果缓存在 `content/summaries.json`，仅对新增仓库调用接口。
 
 GitHub Actions 每日自动运行，也可在 Actions 页面手动触发。部署前需在仓库 Settings 中：
 
-1. **Secrets and variables / Actions** — 添加 `GH_TOKEN`、`GITHUB_USERNAME`、`AI_API_KEY` 等
+1. **Secrets and variables / Actions** — 添加 `GH_TOKEN`、`GH_USERNAME`、`AI_API_KEY` 等
 2. **Pages** — Source 选择 GitHub Actions
 
 ## 技术栈

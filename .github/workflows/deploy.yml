@@ -42,7 +42,7 @@ jobs:
       - name: Fetch Stars
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
-          GITHUB_USERNAME: ${{ secrets.GITHUB_USERNAME }}
+          GH_USERNAME: ${{ secrets.GH_USERNAME }}
         run: pnpm run fetch-stars
 
       - name: Build Data
