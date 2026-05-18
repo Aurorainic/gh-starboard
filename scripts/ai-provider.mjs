@@ -30,7 +30,11 @@ async function chat(systemPrompt, userMessage, maxTokens = 800) {
   }
 
   const data = await res.json();
-  return data.choices[0].message.content.trim();
+  const content = data.choices?.[0]?.message?.content;
+  if (content == null) {
+    throw new Error("API returned null content");
+  }
+  return content.trim();
 }
 
 const LANG_PROMPTS = {
@@ -72,11 +76,21 @@ export async function translateText(text, targetLanguage, sourceLanguage = "zh-C
   return chat(systemPrompt, text);
 }
 
-export async function healthCheck() {
+export async function healthCheck(retries = 2) {
   const systemPrompt = "Reply with exactly the word READY and nothing else.";
-  const response = await chat(systemPrompt, "ping", 10);
-  if (response !== "READY") {
-    throw new Error(`AI provider health check failed: expected "READY", got "${response}"`);
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const response = await chat(systemPrompt, "ping", 50);
+      if (response.toUpperCase().includes("READY")) {
+        return true;
+      }
+      throw new Error(`expected "READY", got "${response}"`);
+    } catch (e) {
+      if (i < retries) {
+        console.warn(`Health check attempt ${i + 1} failed: ${e.message}, retrying...`);
+        continue;
+      }
+      throw new Error(`AI provider health check failed after ${retries + 1} attempts: ${e.message}`);
+    }
   }
-  return true;
 }
