@@ -23,12 +23,8 @@ export function Header({
   const { t } = useT();
   const { language } = useLanguage();
 
-  const title = language === "zh"
-    ? (siteConfig.titleZh || t("app.title"))
-    : (siteConfig.titleEn || t("app.title"));
-  const subtitle = language === "zh"
-    ? (siteConfig.subtitleZh || t("app.subtitle"))
-    : (siteConfig.subtitleEn || t("app.subtitle"));
+  const title = siteConfig.title?.[language] || t("app.title");
+  const subtitle = siteConfig.subtitle?.[language] || t("app.subtitle");
 
   return (
     <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

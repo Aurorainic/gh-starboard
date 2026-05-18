@@ -13,13 +13,18 @@ export function useStars(language: Language) {
       .then((res) => res.json())
       .then((json) => setData(json))
       .catch(() => {
-        // Fallback: empty data for demo
         setData({
           categories: [],
           entries: [],
           totalStars: 0,
           lastUpdated: new Date().toISOString(),
-          siteConfig: { titleZh: "", titleEn: "", subtitleZh: "", subtitleEn: "" },
+          siteConfig: {
+            title: {},
+            subtitle: {},
+            languages: ["en"],
+            aiEnabled: false,
+          },
+          languages: ["en"],
         });
       })
       .finally(() => setLoading(false));
@@ -30,7 +35,6 @@ export function useStars(language: Language) {
     const q = searchQuery.toLowerCase().trim();
     if (!q) return data.entries;
 
-    // topic: prefix for exact topic-only search
     if (q.startsWith("topic:")) {
       const topicQ = q.slice(6).trim();
       if (!topicQ) return data.entries;
@@ -43,8 +47,8 @@ export function useStars(language: Language) {
       const searchText = [
         entry.fullName,
         entry.description,
-        language === "zh" ? entry.aiIntroZh : entry.aiIntroEn,
-        language === "zh" ? entry.userNotesZh : entry.userNotesEn,
+        entry.aiIntro?.[language] || "",
+        entry.userNotes?.[language] || "",
         ...entry.topics,
       ]
         .join(" ")
@@ -76,7 +80,13 @@ export function useStars(language: Language) {
     categories,
     totalStars: data?.totalStars ?? 0,
     totalEntries: data?.entries.length ?? 0,
-    siteConfig: data?.siteConfig ?? { titleZh: "", titleEn: "", subtitleZh: "", subtitleEn: "" },
+    siteConfig: data?.siteConfig ?? {
+      title: {},
+      subtitle: {},
+      languages: ["en"],
+      aiEnabled: false,
+    },
+    availableLanguages: data?.languages ?? ["en"],
     lastUpdated: data?.lastUpdated ?? "",
   };
 }

@@ -7,17 +7,15 @@ export interface StarEntry {
   stargazersCount: number;
   pushedAt: string;
   category: string;
-  aiIntroZh: string;
-  aiIntroEn: string;
-  userNotesZh: string;
-  userNotesEn: string;
+  aiIntro: Record<string, string>;
+  userNotes: Record<string, string>;
 }
 
 export interface SiteConfig {
-  titleZh: string;
-  titleEn: string;
-  subtitleZh: string;
-  subtitleEn: string;
+  title: Record<string, string>;
+  subtitle: Record<string, string>;
+  languages: string[];
+  aiEnabled: boolean;
 }
 
 export interface MergedData {
@@ -26,6 +24,7 @@ export interface MergedData {
   totalStars: number;
   lastUpdated: string;
   siteConfig: SiteConfig;
+  languages: string[];
 }
 
-export type Language = "zh" | "en";
+export type Language = string;

@@ -8,7 +8,7 @@ import { useStars } from "@/hooks/useStars";
 import { useLanguage } from "@/i18n/useLanguage";
 
 export default function App() {
-  const { language } = useLanguage();
+  const { language, setLanguage, setAvailableLanguages } = useLanguage();
   const {
     loading,
     searchQuery,
@@ -17,7 +17,25 @@ export default function App() {
     categories,
     totalEntries,
     siteConfig,
+    availableLanguages,
   } = useStars(language);
+
+  // Sync available languages from data into context
+  useEffect(() => {
+    if (availableLanguages.length > 0) {
+      setAvailableLanguages(availableLanguages);
+    }
+  }, [availableLanguages, setAvailableLanguages]);
+
+  // Correct language if current is not in available list
+  useEffect(() => {
+    if (
+      availableLanguages.length > 0 &&
+      !availableLanguages.includes(language)
+    ) {
+      setLanguage(availableLanguages[0]);
+    }
+  }, [availableLanguages, language, setLanguage]);
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const categoryEntries = categories.map((cat) => ({

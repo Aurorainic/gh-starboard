@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { useT } from "@/i18n/useTranslation";
 
 interface SidebarProps {
   categories: string[];
@@ -13,13 +14,15 @@ export function Sidebar({
   activeCategory,
   onCategoryClick,
 }: SidebarProps) {
+  const { t } = useT();
+
   return (
     <aside className="hidden lg:block w-60 shrink-0">
       <nav className="sticky top-14 pt-4">
         <ScrollArea className="h-[calc(100vh-3.5rem)]">
           <div className="px-3 py-2">
             <h2 className="mb-2 px-4 text-sm font-semibold tracking-tight">
-              目录
+              {t("sidebar.toc")}
             </h2>
             <div className="space-y-1">
               {categories.map((cat) => (

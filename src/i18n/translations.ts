@@ -1,7 +1,7 @@
-import { type Language } from "@/types";
+export const DEFAULT_LANGUAGE = "en";
 
-export const translations: Record<Language, Record<string, string>> = {
-  zh: {
+export const translations: Record<string, Record<string, string>> = {
+  "zh-CN": {
     "app.title": "GitHub Stars 笔记展",
     "app.subtitle": "我的 GitHub Stars 收藏与笔记",
     "search.placeholder": "搜索仓库名称、简介、笔记...",
@@ -35,4 +35,9 @@ export const translations: Record<Language, Record<string, string>> = {
     "empty.title": "No matching repositories",
     "empty.description": "Try adjusting your search terms or clearing filters",
   },
+};
+
+export const LANGUAGE_LABELS: Record<string, string> = {
+  "zh-CN": "中文",
+  en: "English",
 };

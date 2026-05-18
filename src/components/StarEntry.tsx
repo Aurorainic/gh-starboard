@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { type StarEntry as StarEntryType, type Language } from "@/types";
-import { ExternalLink, Star, Clock, Bot } from "lucide-react";
+import { ExternalLink, Star, Clock, Bot, Info } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -22,7 +22,7 @@ function timeAgo(date: string, language: Language) {
   const months = Math.floor(days / 30);
   const years = Math.floor(days / 365);
 
-  if (language === "zh") {
+  if (language === "zh-CN") {
     if (minutes < 1) return "刚刚";
     if (hours < 1) return `${minutes} 分钟前`;
     if (days < 1) return `${hours} 小时前`;
@@ -40,9 +40,11 @@ function timeAgo(date: string, language: Language) {
 }
 
 export function StarEntry({ entry, language, onTopicClick }: StarEntryProps) {
-  const intro = language === "zh" ? entry.aiIntroZh : entry.aiIntroEn;
-  const notes = language === "zh" ? entry.userNotesZh : entry.userNotesEn;
+  const aiIntro = entry.aiIntro?.[language] || "";
+  const intro = aiIntro || entry.description;
+  const notes = entry.userNotes?.[language] || "";
   const pushedAgo = timeAgo(entry.pushedAt, language);
+  const isAiGenerated = !!aiIntro;
 
   return (
     <div className="rounded-lg border bg-card p-4 space-y-3">
@@ -88,13 +90,19 @@ export function StarEntry({ entry, language, onTopicClick }: StarEntryProps) {
         </span>
       </div>
 
-      {/* AI Intro */}
+      {/* Intro section */}
       {intro && (
         <div className="rounded-md bg-muted/50 px-3 py-2">
           <div className="flex items-center gap-1 mb-1">
-            <Bot className="h-3.5 w-3.5 text-muted-foreground" />
+            {isAiGenerated ? (
+              <Bot className="h-3.5 w-3.5 text-muted-foreground" />
+            ) : (
+              <Info className="h-3.5 w-3.5 text-muted-foreground" />
+            )}
             <p className="text-xs font-medium text-muted-foreground">
-              {language === "zh" ? "AI 简介" : "AI Intro"}
+              {isAiGenerated
+                ? (language === "zh-CN" ? "AI 简介" : "AI Intro")
+                : (language === "zh-CN" ? "项目简介" : "Description")}
             </p>
           </div>
           <p className="text-sm text-muted-foreground line-clamp-3">{intro}</p>
