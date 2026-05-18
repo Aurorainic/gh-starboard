@@ -8,6 +8,27 @@ loadEnv();
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 
+// ---- D1 support ----
+const D1_ENABLED = !!(
+  process.env.CLOUDFLARE_API_TOKEN &&
+  process.env.CLOUDFLARE_ACCOUNT_ID &&
+  process.env.D1_DATABASE_ID
+);
+let d1 = null;
+if (D1_ENABLED) {
+  try {
+    const mod = await import("./d1-client.mjs");
+    d1 = mod;
+    await d1.ensureTables();
+    console.log("D1 storage enabled");
+  } catch (e) {
+    console.warn(`D1 init failed: ${e.message}. Falling back to file storage.`);
+    d1 = null;
+  }
+} else {
+  console.log("D1 not configured, using file-based storage");
+}
+
 const STARS_FILE = resolve(ROOT, "public/data/stars.json");
 const STARS_MD = resolve(ROOT, "content/stars.md");
 const SUMMARIES_FILE = resolve(ROOT, "content/summaries.json");
@@ -68,12 +89,24 @@ function loadStars() {
   return JSON.parse(readFileSync(STARS_FILE, "utf-8"));
 }
 
-function loadSummaries() {
-  if (!existsSync(SUMMARIES_FILE)) {
-    return { data: {}, migrated: false };
+async function loadSummaries() {
+  let raw;
+
+  if (d1) {
+    try {
+      raw = await d1.loadSummariesFromD1();
+    } catch (e) {
+      console.warn(`D1 read failed: ${e.message}. Falling back to file.`);
+    }
   }
 
-  const raw = JSON.parse(readFileSync(SUMMARIES_FILE, "utf-8"));
+  if (raw === undefined) {
+    if (!existsSync(SUMMARIES_FILE)) {
+      return { data: {}, migrated: false };
+    }
+    raw = JSON.parse(readFileSync(SUMMARIES_FILE, "utf-8"));
+  }
+
   const entries = Object.entries(raw);
 
   // Detect and migrate old format: entries with aiIntroZh (string) → new Record format
@@ -104,7 +137,15 @@ function loadSummaries() {
   return { data: migrated, migrated: true };
 }
 
-function saveSummaries(summaries) {
+async function saveSummaries(summaries) {
+  if (d1) {
+    try {
+      await d1.saveSummariesToD1(summaries);
+      return;
+    } catch (e) {
+      console.warn(`D1 write failed: ${e.message}. Writing to file.`);
+    }
+  }
   mkdirSync(dirname(SUMMARIES_FILE), { recursive: true });
   writeFileSync(SUMMARIES_FILE, JSON.stringify(summaries, null, 2), "utf-8");
 }
@@ -161,7 +202,7 @@ function parseStarsMd() {
 
 async function main() {
   const stars = loadStars();
-  const { data: summaries, migrated: cacheMigrated } = loadSummaries();
+  const { data: summaries, migrated: cacheMigrated } = await loadSummaries();
   const notesMap = parseStarsMd();
 
   const categoriesSet = new Set();
@@ -261,7 +302,7 @@ async function main() {
   }
 
   if (summaryChanged) {
-    saveSummaries(summaries);
+    await saveSummaries(summaries);
     console.log("Summaries cache updated");
   }
 

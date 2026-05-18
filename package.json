@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "fetch-stars": "node scripts/fetch-stars.mjs",
     "build-data": "node scripts/build-data.mjs",
-    "all": "node scripts/fetch-stars.mjs && node scripts/build-data.mjs && vite build"
+    "all": "node scripts/fetch-stars.mjs && node scripts/build-data.mjs && vite build",
+    "d1-migrate": "node scripts/d1-migrate.mjs",
+    "d1-seed": "node scripts/d1-migrate.mjs --seed"
   },
   "dependencies": {
     "@radix-ui/react-scroll-area": "^1.2.3",

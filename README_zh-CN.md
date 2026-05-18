@@ -1,6 +1,6 @@
 # GH-STARBOARD
 
-> 将 GitHub Stars 转化为可浏览、可检索、带个人笔记的双语页面。
+> 将 GitHub Stars 转化为可浏览、可检索、带个人笔记的页面。
 
 > [!IMPORTANT]
 > **所有代码由 生成式 AI 编写**
@@ -18,8 +18,20 @@
 - **标签筛选** — 点击任意话题 badge 即可按标签过滤仓库
 - **多语言支持** — 默认英文，可添加更多语言（如中文）。AI 自动翻译笔记
 - **响应式布局** — 移动端单列、桌面端双列网格
+- **D1 外置缓存** — Cloudflare D1 外置缓存（推荐），CI 工作区重置后仍保留 AI 缓存。未配置时降级到本地文件
 
 ## 快速开始
+
+1. **Fork** 本仓库
+2. **启用 GitHub Actions**（Settings → Actions → Allow all actions）
+3. **设置仓库 Secrets**（Settings → Secrets and variables → Actions）— 完整变量列表见[配置参考](#配置参考)。最低要求：
+   - `GH_TOKEN` — [GitHub personal access token](https://github.com/settings/tokens)
+   - `GH_USERNAME` — 你的 GitHub 用户名
+4. **手动触发工作流**（Actions → Build & Deploy → Run workflow），或 push 到 `main`
+
+站点将自动部署到 GitHub Pages。其他平台（Cloudflare Pages、Vercel、Netlify 等）导入 fork 仓库并设置相同的环境变量即可。
+
+### 本地开发
 
 ```bash
 cp .env.example .env.local
@@ -31,7 +43,7 @@ pnpm dev
 
 打开 `http://localhost:5173` 即可浏览你的 star 数据。
 
-> **前置条件**：Node.js 22+ 和 pnpm。需要 [GitHub personal access token](https://github.com/settings/tokens)（无需特殊权限）。
+> **前置条件**：Node.js 22+ 和 pnpm。
 
 ## 日常使用
 
@@ -79,13 +91,15 @@ AI_ENABLED=on
 
 ## 部署
 
-构建为静态网站，可部署到任意平台：
+一键构建数据 + 前端：
 
 ```bash
-pnpm build        # 输出到 dist/
+pnpm run all      # 拉取 stars → AI 生成 → vite build → dist/
 ```
 
-项目内置 [GitHub Actions 工作流](.github/workflows/deploy.yml)，在 push 到 main 时自动拉取数据、构建并部署到 GitHub Pages（也支持每日定时和手动触发）。`dist/` 目录同样可部署到任何静态托管服务。
+`dist/` 是纯静态站点，可部署到任意托管平台（GitHub Pages、Cloudflare Pages、Vercel、Netlify 等）。
+
+项目内置 [GitHub Actions 工作流](.github/workflows/deploy.yml) 支持自动化构建（push to main、每日定时、手动触发）。在仓库设置中配置所需的 Secrets 即可。
 
 ## 配置参考
 
@@ -100,6 +114,9 @@ pnpm build        # 输出到 dist/
 | `SITE_TITLE` | 否 | 自定义标题，JSON 格式，按语言代码索引 |
 | `SITE_SUBTITLE` | 否 | 自定义副标题，JSON 格式，按语言代码索引 |
 | `AI_ENABLED` | 否 | `on` / `off`（默认 `on`） |
+| `CLOUDFLARE_API_TOKEN` | 推荐 | Cloudflare API Token（D1 外置缓存） |
+| `CLOUDFLARE_ACCOUNT_ID` | 推荐 | Cloudflare 账号 ID |
+| `D1_DATABASE_ID` | 推荐 | D1 数据库 ID |
 
 ## AI 配置
 
@@ -118,7 +135,70 @@ export async function translateText(text, targetLanguage) {
 }
 ```
 
-结果缓存在 `content/summaries.json`，仅对新增仓库调用 AI。取消 star 的仓库自动从缓存中清理。设置 `AI_ENABLED=off` 可完全跳过 AI，回退显示 GitHub 原始描述。
+结果增量缓存，仅对新增仓库调用 AI。取消 star 的仓库自动从缓存中清理。设置 `AI_ENABLED=off` 可完全跳过 AI，回退显示 GitHub 原始描述。
+
+### D1 外置缓存（推荐）
+
+[Cloudflare D1](https://developers.cloudflare.com/d1/) 是推荐的缓存后端。构建时连接 D1 → 拉取缓存 → 仅处理新增/变更的仓库 → 回写缓存。确保缓存在 CI 工作区重置后不丢失，无需每次重新生成 AI 简介。
+
+未配置 D1 时，降级到本地 `content/summaries.json` 文件（CI 工作区临时的情况下会丢失）。
+
+<details>
+<summary>配置指南（一次性，约 5 分钟）</summary>
+
+**1. 安装 Wrangler CLI**
+
+```bash
+npm install -g wrangler
+wrangler login
+```
+
+**2. 创建 D1 数据库**
+
+```bash
+wrangler d1 create gh-starboard-cache
+```
+
+输出：
+
+```
+✅ Successfully created DB 'gh-starboard-cache'
+
+[[d1_databases]]
+binding = "DB"
+database_name = "gh-starboard-cache"
+database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+```
+
+记下 `database_id`，后面要用。
+
+**3. 获取 Account ID**
+
+在 [Cloudflare Dashboard](https://dash.cloudflare.com) 任意域名概览页的右侧栏可以看到 Account ID，是一个 32 位十六进制字符串。
+
+**4. 创建 API Token**
+
+前往 [Cloudflare API Tokens](https://dash.cloudflare.com/profile/api-tokens) → 创建 Token → 使用 "Edit zone DNS" 模板或自定义 Token：
+
+- 权限：`D1:Edit`
+- 账号：选择你的账号
+
+复制 Token（仅显示一次）。
+
+**5. 设置环境变量**
+
+将 `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`D1_DATABASE_ID` 添加到 `.env.local`（本地开发）或托管平台 Secrets（CI/CD）。见[配置参考](#配置参考)。
+
+**6. 初始化并迁移**
+
+```bash
+pnpm run d1-migrate    # 创建表结构
+pnpm run d1-seed       # 导入已有 summaries.json（如有）
+```
+
+完成。后续 `pnpm run all` 构建会自动使用 D1。
+
+</details>
 
 ## 数据流
 
@@ -127,9 +207,10 @@ fetch-stars.mjs  ──►  public/data/stars.json
                            │
 build-data.mjs            │
 ├── 解析 content/stars.md（分类 + 笔记）
-├── 读取 content/summaries.json（AI 缓存）
+├── 读取 AI 缓存 ← D1 外置 / summaries.json（降级）
 ├── 缺失仓库：调 AI 生成简介 + 翻译
 ├── 清理已取消 star 的缓存
+├── 写回缓存 → D1 / summaries.json
 └── 合并  ──►  public/data/merged.json
                            │
                      vite build  ──►  dist/
@@ -144,6 +225,8 @@ build-data.mjs            │
 | `pnpm run fetch-stars` | 从 GitHub API 拉取最新 stars |
 | `pnpm run build-data` | 解析笔记 + AI 生成 + 合并数据 |
 | `pnpm run all` | 一键执行全流程 |
+| `pnpm run d1-migrate` | 初始化 D1 表结构 |
+| `pnpm run d1-seed` | 从本地 summaries.json 迁移到 D1（一次性） |
 
 ## 技术栈
 
