@@ -8,13 +8,13 @@ interface LanguageContextValue {
 }
 
 export const LanguageContext = createContext<LanguageContextValue>({
-  language: "zh",
+  language: "en",
   setLanguage: () => {},
   toggleLanguage: () => {},
 });
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguage] = useState<Language>("zh");
+  const [language, setLanguage] = useState<Language>("en");
 
   const toggleLanguage = useCallback(() => {
     setLanguage((prev) => (prev === "zh" ? "en" : "zh"));

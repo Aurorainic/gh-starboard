@@ -10,6 +10,7 @@ const ROOT = resolve(__dirname, "..");
 
 const STARS_FILE = resolve(ROOT, "public/data/stars.json");
 const STARS_MD = resolve(ROOT, "content/stars.md");
+const CONFIG_FILE = resolve(ROOT, "content/config.json");
 const SUMMARIES_FILE = resolve(ROOT, "content/summaries.json");
 const OUTPUT = resolve(ROOT, "public/data/merged.json");
 
@@ -32,6 +33,13 @@ function loadStars() {
     process.exit(1);
   }
   return JSON.parse(readFileSync(STARS_FILE, "utf-8"));
+}
+
+function loadConfig() {
+  if (existsSync(CONFIG_FILE)) {
+    return JSON.parse(readFileSync(CONFIG_FILE, "utf-8"));
+  }
+  return {};
 }
 
 function loadSummaries() {
@@ -178,6 +186,15 @@ async function main() {
     });
   }
 
+  // Prune un-starred repos from summaries cache
+  const currentFullNames = new Set(stars.map((s) => s.fullName));
+  for (const key of Object.keys(summaries)) {
+    if (!currentFullNames.has(key)) {
+      delete summaries[key];
+      summaryChanged = true;
+    }
+  }
+
   if (summaryChanged) {
     saveSummaries(summaries);
     console.log("Summaries cache updated");
@@ -189,11 +206,18 @@ async function main() {
     0
   );
 
+  const config = loadConfig();
   const merged = {
     categories,
     entries,
     totalStars,
     lastUpdated: new Date().toISOString(),
+    siteConfig: {
+      titleZh: config.titleZh || "",
+      titleEn: config.titleEn || "",
+      subtitleZh: config.subtitleZh || "",
+      subtitleEn: config.subtitleEn || "",
+    },
   };
 
   mkdirSync(dirname(OUTPUT), { recursive: true });

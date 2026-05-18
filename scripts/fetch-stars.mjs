@@ -25,7 +25,7 @@ async function fetchPage(page) {
     headers: {
       Authorization: `token ${GH_TOKEN}`,
       Accept: "application/vnd.github.v3+json",
-      "User-Agent": "re-tag-stars",
+      "User-Agent": "gh-starboard",
     },
   });
   if (!res.ok) {

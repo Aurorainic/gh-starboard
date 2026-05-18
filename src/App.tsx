@@ -15,7 +15,8 @@ export default function App() {
     setSearchQuery,
     groupedByCategory,
     categories,
-    totalStars,
+    totalEntries,
+    siteConfig,
   } = useStars(language);
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -63,8 +64,9 @@ export default function App() {
       <Header
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        totalStars={totalStars}
+        totalEntries={totalEntries}
         categoriesCount={categories.length}
+        siteConfig={siteConfig}
       />
 
       <div className="flex">
@@ -98,6 +100,7 @@ export default function App() {
                 category={category}
                 entries={entries}
                 language={language}
+                onTopicClick={(topic) => setSearchQuery(`topic:${topic}`)}
               />
             ))}
           </div>

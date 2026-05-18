@@ -19,6 +19,7 @@ export function useStars(language: Language) {
           entries: [],
           totalStars: 0,
           lastUpdated: new Date().toISOString(),
+          siteConfig: { titleZh: "", titleEn: "", subtitleZh: "", subtitleEn: "" },
         });
       })
       .finally(() => setLoading(false));
@@ -28,6 +29,15 @@ export function useStars(language: Language) {
     if (!data) return [];
     const q = searchQuery.toLowerCase().trim();
     if (!q) return data.entries;
+
+    // topic: prefix for exact topic-only search
+    if (q.startsWith("topic:")) {
+      const topicQ = q.slice(6).trim();
+      if (!topicQ) return data.entries;
+      return data.entries.filter((entry) =>
+        entry.topics.some((t) => t.toLowerCase().includes(topicQ))
+      );
+    }
 
     return data.entries.filter((entry) => {
       const searchText = [
@@ -65,6 +75,8 @@ export function useStars(language: Language) {
     groupedByCategory,
     categories,
     totalStars: data?.totalStars ?? 0,
+    totalEntries: data?.entries.length ?? 0,
+    siteConfig: data?.siteConfig ?? { titleZh: "", titleEn: "", subtitleZh: "", subtitleEn: "" },
     lastUpdated: data?.lastUpdated ?? "",
   };
 }

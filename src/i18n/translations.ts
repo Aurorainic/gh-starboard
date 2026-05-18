@@ -5,7 +5,7 @@ export const translations: Record<Language, Record<string, string>> = {
     "app.title": "GitHub Stars 笔记展",
     "app.subtitle": "我的 GitHub Stars 收藏与笔记",
     "search.placeholder": "搜索仓库名称、简介、笔记...",
-    "stats.totalStars": "共 {count} 个 Star",
+    "stats.totalStars": "共 {count} 个项目",
     "stats.categories": "{count} 个分类",
     "sidebar.toc": "目录",
     "language.switch": "English",

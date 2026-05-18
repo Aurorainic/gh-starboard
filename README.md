@@ -1,81 +1,129 @@
-# RE-TAG-STARS
+# GH-STARBOARD
 
-⚠️ ALL CODES BY AI
+> Turn your GitHub stars into a browsable, searchable, bilingual notes page — deployed on GitHub Pages.
 
----
-> 展示 GitHub Stars 的单页应用。支持 Markdown 笔记、AI 自动简介、中英文切换。部署在 GitHub Pages。
+**⚠️ All Codes made by Generative AI**
 
-## 快速开始
+[中文说明](README_zh.md) | [Live Demo](https://aurorainic.github.io/gh-starboard/)
+
+## Features
+
+- **Markdown Notes** — Write personal notes for starred repos in `content/stars.md`, organized by categories
+- **AI Auto Intro** — AI generates 50-100 word Chinese intros for each repo, cached incrementally
+- **Smart Search** — Search by name, description, notes, or use `topic:` prefix for exact tag filtering
+- **Clickable Tags** — Click any topic badge to filter repos by that tag
+- **Responsive** — 1-column on mobile, 2-column grid on desktop. Text auto-truncates with ellipsis
+- **Auto Deploy** — GitHub Actions (or other platforms) runs on main branch push + daily schedule + manual trigger
+
+## Quick Start
 
 ```bash
 cp .env.example .env.local
-# 编辑 .env.local 填入 GH_TOKEN 和 GH_USERNAME
+# Edit .env.local: GH_TOKEN, GH_USERNAME, and optionally AI_API_KEY
 pnpm install
 pnpm run fetch-stars
 pnpm run build-data
 pnpm dev
 ```
 
-## 使用方法
+## How It Works
 
-日常只需编辑 `content/stars.md` 写笔记，推送后 GitHub Actions 自动拉取 stars、生成简介、翻译并部署。
-
-### 笔记格式
+Daily workflow — just edit `content/stars.md`:
 
 ```markdown
-# 分类名称
+# Category Name
 
 ## [owner/repo](https://github.com/owner/repo)
-用户中文笔记。支持 **Markdown** 语法，可以多段落、代码块等。
+Your notes in Chinese. Markdown supported.
 ```
 
-- **H1** (`#`) → 分类名
-- **H2** (`##`) → 仓库条目，必须包含 `[owner/repo](url)` 链接
-- **正文** → 用户笔记，会被 AI 自动翻译为英文
+- **H1** (`#`) — category name
+- **H2** (`##`) — repo entry, must include `[owner/repo](url)` link
+- **Body** — personal notes (Markdown), auto-translated to English via AI
 
-### 常用命令
+### Customize Title & Subtitle
 
-| 命令 | 说明 |
-|------|------|
-| `pnpm dev` | 启动开发服务器 |
-| `pnpm build` | TypeScript 检查 + 生产构建 |
-| `pnpm run fetch-stars` | 手动拉取 stars 数据 |
-| `pnpm run build-data` | 解析笔记 + AI 生成简介 |
-| `pnpm run all` | 一键执行全流程 |
+Edit `content/config.json`:
 
-## 环境变量
+```json
+{
+  "titleZh": "My Stars",
+  "titleEn": "My Stars",
+  "subtitleZh": "收藏即笔记",
+  "subtitleEn": "Bookmark & Note"
+}
+```
 
-| 变量 | 必填 | 说明 |
-|------|------|------|
-| `GH_TOKEN` | 是 | GitHub personal access token |
-| `GH_USERNAME` | 是 | 要抓取的 GitHub 用户名 |
-| `AI_API_KEY` | 否 | AI API Key，不提供则跳过 AI 功能 |
-| `AI_API_BASE_URL` | 否 | API 地址 |
-| `AI_MODEL` | 否 | 模型名 |
+Leave fields empty to use the defaults.
 
-## AI 功能介绍
+## Commands
 
-编辑 `scripts/ai-provider.mjs`，实现两个函数即可接入任意 AI 服务：
+| Command | Description |
+|---------|-------------|
+| `pnpm dev` | Start dev server |
+| `pnpm build` | TypeScript check + production build |
+| `pnpm run fetch-stars` | Fetch latest stars from GitHub API |
+| `pnpm run build-data` | Parse notes + AI generate + merge |
+| `pnpm run all` | fetch → build-data → build in one pass |
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `GH_TOKEN` | Yes | GitHub personal access token |
+| `GH_USERNAME` | Yes | GitHub username to fetch stars from |
+| `AI_API_KEY` | No | AI API key (OpenAI-compatible) |
+| `AI_API_BASE_URL` | No | API base URL (default: `https://api.openai.com/v1`) |
+| `AI_MODEL` | No | Model name (default: `gpt-4o-mini`) |
+
+## AI Setup
+
+Edit `scripts/ai-provider.mjs` — two functions to implement:
 
 ```js
 export async function generateIntroZh(repoName, repoDescription, readmePreview) {
-  // 返回 50-100 字中文简介
+  // Return 50-100 character Chinese intro
 }
 
 export async function translateToEn(text) {
-  // 返回英文翻译
+  // Return English translation
 }
 ```
 
-AI 结果缓存在 `content/summaries.json`，仅对新增仓库调用接口。
+The default implementation calls any OpenAI-compatible API using `AI_API_BASE_URL` + `AI_API_KEY` + `AI_MODEL`. Results are cached in `content/summaries.json` — only new repos trigger API calls. Un-starred repos are auto-pruned from cache.
 
-## 部署
+## Data Pipeline
 
-GitHub Actions 每日自动运行，也可在 Actions 页面手动触发。部署前需在仓库 Settings 中：
+```
+fetch-stars.mjs ──► public/data/stars.json
+                         │
+build-data.mjs           │
+├── Parse content/stars.md (categories + notes)
+├── Read content/summaries.json (AI cache)
+├── For missing repos: call AI provider (intro + translate)
+├── Prune un-starred repos from cache
+└── Merge ──► public/data/merged.json
+                         │
+                   vite build ──► dist/
+                         │
+               GitHub Pages deploy
+```
 
-1. **Secrets and variables / Actions** — 添加 `GH_TOKEN`、`GH_USERNAME`、`AI_API_KEY` 等
-2. **Pages** — Source 选择 GitHub Actions
+## Deploy
 
-## 技术栈
+Deployed via GitHub Actions (`.github/workflows/deploy.yml`):
 
-React 18 + TypeScript + Vite + Tailwind CSS v3 + shadcn/ui
+- **Triggers**: push to `main` / daily schedule / manual `workflow_dispatch`
+- **Secrets needed**: `GH_TOKEN`, `GH_USERNAME`, `AI_API_KEY`
+- **Node**: 22 (pnpm latest requirement)
+
+Repo Settings required:
+1. **Actions Secrets** — add `GH_TOKEN`, `GH_USERNAME`, `AI_API_KEY`, etc.
+2. **Pages** — source: GitHub Actions
+
+## Tech Stack
+
+React 18 + TypeScript + Vite + Tailwind CSS v3 + shadcn/ui + react-markdown + remark-gfm
+
+## License
+CC0 1.0 Universal

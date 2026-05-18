@@ -13,11 +13,19 @@ export interface StarEntry {
   userNotesEn: string;
 }
 
+export interface SiteConfig {
+  titleZh: string;
+  titleEn: string;
+  subtitleZh: string;
+  subtitleEn: string;
+}
+
 export interface MergedData {
   categories: string[];
   entries: StarEntry[];
   totalStars: number;
   lastUpdated: string;
+  siteConfig: SiteConfig;
 }
 
 export type Language = "zh" | "en";
