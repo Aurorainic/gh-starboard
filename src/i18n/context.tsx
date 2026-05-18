@@ -1,27 +1,46 @@
 import { createContext, useState, useCallback, type ReactNode } from "react";
-import { type Language } from "@/types";
+import { DEFAULT_LANGUAGE } from "@/i18n/translations";
 
-interface LanguageContextValue {
-  language: Language;
-  setLanguage: (lang: Language) => void;
+export interface LanguageContextValue {
+  language: string;
+  setLanguage: (lang: string) => void;
   toggleLanguage: () => void;
+  availableLanguages: string[];
+  setAvailableLanguages: (langs: string[]) => void;
 }
 
 export const LanguageContext = createContext<LanguageContextValue>({
-  language: "zh",
+  language: DEFAULT_LANGUAGE,
   setLanguage: () => {},
   toggleLanguage: () => {},
+  availableLanguages: [DEFAULT_LANGUAGE],
+  setAvailableLanguages: () => {},
 });
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguage] = useState<Language>("zh");
+  const [availableLanguages, setAvailableLanguages] = useState<string[]>([
+    DEFAULT_LANGUAGE,
+  ]);
+  const [language, setLanguage] = useState<string>(DEFAULT_LANGUAGE);
 
   const toggleLanguage = useCallback(() => {
-    setLanguage((prev) => (prev === "zh" ? "en" : "zh"));
-  }, []);
+    setLanguage((prev) => {
+      const idx = availableLanguages.indexOf(prev);
+      const nextIdx = (idx + 1) % availableLanguages.length;
+      return availableLanguages[nextIdx];
+    });
+  }, [availableLanguages]);
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, toggleLanguage }}>
+    <LanguageContext.Provider
+      value={{
+        language,
+        setLanguage,
+        toggleLanguage,
+        availableLanguages,
+        setAvailableLanguages,
+      }}
+    >
       {children}
     </LanguageContext.Provider>
   );

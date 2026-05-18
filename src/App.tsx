@@ -8,15 +8,34 @@ import { useStars } from "@/hooks/useStars";
 import { useLanguage } from "@/i18n/useLanguage";
 
 export default function App() {
-  const { language } = useLanguage();
+  const { language, setLanguage, setAvailableLanguages } = useLanguage();
   const {
     loading,
     searchQuery,
     setSearchQuery,
     groupedByCategory,
     categories,
-    totalStars,
+    totalEntries,
+    siteConfig,
+    availableLanguages,
   } = useStars(language);
+
+  // Sync available languages from data into context
+  useEffect(() => {
+    if (availableLanguages.length > 0) {
+      setAvailableLanguages(availableLanguages);
+    }
+  }, [availableLanguages, setAvailableLanguages]);
+
+  // Correct language if current is not in available list
+  useEffect(() => {
+    if (
+      availableLanguages.length > 0 &&
+      !availableLanguages.includes(language)
+    ) {
+      setLanguage(availableLanguages[0]);
+    }
+  }, [availableLanguages, language, setLanguage]);
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const categoryEntries = categories.map((cat) => ({
@@ -63,8 +82,9 @@ export default function App() {
       <Header
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
-        totalStars={totalStars}
+        totalEntries={totalEntries}
         categoriesCount={categories.length}
+        siteConfig={siteConfig}
       />
 
       <div className="flex">
@@ -98,6 +118,7 @@ export default function App() {
                 category={category}
                 entries={entries}
                 language={language}
+                onTopicClick={(topic) => setSearchQuery(`topic:${topic}`)}
               />
             ))}
           </div>

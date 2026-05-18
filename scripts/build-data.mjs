@@ -13,18 +13,52 @@ const STARS_MD = resolve(ROOT, "content/stars.md");
 const SUMMARIES_FILE = resolve(ROOT, "content/summaries.json");
 const OUTPUT = resolve(ROOT, "public/data/merged.json");
 
+// ---- Env config ----
+const languages = (process.env.SITE_LANGUAGES || "en")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+const aiEnabled = (process.env.AI_ENABLED || "on").toLowerCase() === "on";
+
+let siteTitle = {};
+let siteSubtitle = {};
+try {
+  if (process.env.SITE_TITLE) siteTitle = JSON.parse(process.env.SITE_TITLE);
+  if (process.env.SITE_SUBTITLE) siteSubtitle = JSON.parse(process.env.SITE_SUBTITLE);
+} catch {
+  console.warn("Failed to parse SITE_TITLE or SITE_SUBTITLE as JSON, using defaults");
+}
+
+// ---- AI provider ----
 let aiAvailable = false;
-let generateIntroZh, translateToEn;
+let generateIntro, translateText;
 
 try {
   const ai = await import("./ai-provider.mjs");
-  generateIntroZh = ai.generateIntroZh;
-  translateToEn = ai.translateToEn;
-  aiAvailable = true;
-  console.log("AI provider loaded");
+  generateIntro = ai.generateIntro;
+  translateText = ai.translateText;
+
+  if (aiEnabled) {
+    try {
+      await ai.healthCheck();
+      aiAvailable = true;
+      console.log("AI provider loaded and verified");
+    } catch (e) {
+      console.error(`AI provider health check failed: ${e.message}`);
+    }
+  } else {
+    console.log("AI provider loaded (AI_ENABLED=off, health check skipped)");
+  }
 } catch {
   console.log("AI provider not available, skipping AI features");
 }
+
+if (!aiEnabled) {
+  console.log("AI_ENABLED=off, skipping all AI features");
+}
+
+// ---- File loaders ----
 
 function loadStars() {
   if (!existsSync(STARS_FILE)) {
@@ -35,10 +69,39 @@ function loadStars() {
 }
 
 function loadSummaries() {
-  if (existsSync(SUMMARIES_FILE)) {
-    return JSON.parse(readFileSync(SUMMARIES_FILE, "utf-8"));
+  if (!existsSync(SUMMARIES_FILE)) {
+    return { data: {}, migrated: false };
   }
-  return {};
+
+  const raw = JSON.parse(readFileSync(SUMMARIES_FILE, "utf-8"));
+  const entries = Object.entries(raw);
+
+  // Detect and migrate old format: entries with aiIntroZh (string) → new Record format
+  const needsMigration = entries.some(
+    ([, v]) => typeof v.aiIntroZh === "string"
+  );
+
+  if (!needsMigration) return { data: raw, migrated: false };
+
+  console.log("Migrating summaries cache from old format...");
+  const migrated = {};
+  for (const [key, val] of entries) {
+    if (typeof val.aiIntroZh === "string") {
+      migrated[key] = {
+        aiIntro: {
+          "zh-CN": val.aiIntroZh || "",
+          en: val.aiIntroEn || "",
+        },
+        userNotes: {
+          "zh-CN": val.userNotesZh || "",
+          en: val.userNotesEn || "",
+        },
+      };
+    } else {
+      migrated[key] = val;
+    }
+  }
+  return { data: migrated, migrated: true };
 }
 
 function saveSummaries(summaries) {
@@ -55,22 +118,19 @@ function parseStarsMd() {
   const content = readFileSync(STARS_MD, "utf-8");
   const lines = content.split("\n");
 
-  const categoryMap = {}; // fullName → { category, notes }
+  const categoryMap = {};
   let currentCategory = "Uncategorized";
   let currentRepo = null;
   let currentNotes = [];
 
   for (const line of lines) {
-    // H1 → category
     if (/^# /.test(line)) {
       currentCategory = line.replace(/^# /, "").trim();
       continue;
     }
 
-    // H2 → repo entry
     const h2Match = line.match(/^## \[(.+?)\]\(https:\/\/github\.com\/(.+?)\)/);
     if (h2Match) {
-      // flush previous
       if (currentRepo) {
         categoryMap[currentRepo] = {
           category: currentCategory,
@@ -82,13 +142,11 @@ function parseStarsMd() {
       continue;
     }
 
-    // Collect notes
     if (currentRepo && line.trim()) {
       currentNotes.push(line);
     }
   }
 
-  // flush last
   if (currentRepo) {
     categoryMap[currentRepo] = {
       category: currentCategory,
@@ -99,68 +157,85 @@ function parseStarsMd() {
   return categoryMap;
 }
 
+// ---- Main pipeline ----
+
 async function main() {
   const stars = loadStars();
-  const summaries = loadSummaries();
+  const { data: summaries, migrated: cacheMigrated } = loadSummaries();
   const notesMap = parseStarsMd();
 
   const categoriesSet = new Set();
   const entries = [];
 
-  let summaryChanged = false;
+  let summaryChanged = cacheMigrated;
 
   for (const star of stars) {
     const noteData = notesMap[star.fullName] || {};
     const category = noteData.category || "Uncategorized";
     categoriesSet.add(category);
 
-    const userNotesZh = noteData.notes || "";
+    const userNotesRaw = noteData.notes || "";
+    const cache = summaries[star.fullName] || { aiIntro: {}, userNotes: {} };
 
-    // AI intro
-    let { aiIntroZh = "", aiIntroEn = "" } = summaries[star.fullName] || {};
-    if (!aiIntroZh && aiAvailable) {
-      try {
-        aiIntroZh = await generateIntroZh(
-          star.fullName,
-          star.description,
-          ""
-        );
-        summaries[star.fullName] = {
-          ...summaries[star.fullName],
-          aiIntroZh,
-        };
-        summaryChanged = true;
-      } catch (e) {
-        console.warn(`AI intro failed for ${star.fullName}: ${e.message}`);
+    // Priority order for detecting Chinese source language from available languages
+    const ZH_VARIANTS = ["zh-CN", "zh-TW", "zh-HK", "zh-Hans", "zh-Hant", "zh"];
+    const notesSourceLang = ZH_VARIANTS.find((z) => languages.includes(z)) || languages[0] || "zh-CN";
+
+    if (aiEnabled && aiAvailable) {
+      // AI intros for each language — invalidate if description changed
+      const introSource = `${star.fullName}|${star.description || ""}`;
+      if (cache._introSource !== introSource) {
+        cache.aiIntro = {};
       }
-    }
-    if (!aiIntroEn && aiIntroZh && aiAvailable) {
-      try {
-        aiIntroEn = await translateToEn(aiIntroZh);
-        summaries[star.fullName] = {
-          ...summaries[star.fullName],
-          aiIntroEn,
-        };
-        summaryChanged = true;
-      } catch (e) {
-        console.warn(`AI translate failed for ${star.fullName}: ${e.message}`);
+      for (const lang of languages) {
+        if (!cache.aiIntro[lang]) {
+          try {
+            cache.aiIntro[lang] = await generateIntro(
+              lang,
+              star.fullName,
+              star.description
+            );
+            summaryChanged = true;
+          } catch (e) {
+            console.warn(
+              `AI intro [${lang}] failed for ${star.fullName}: ${e.message}`
+            );
+          }
+        }
+      }
+      cache._introSource = introSource;
+
+      // Store raw notes under the detected source language
+      if (languages.includes(notesSourceLang)) {
+        cache.userNotes[notesSourceLang] = userNotesRaw;
+      }
+
+      for (const lang of languages) {
+        if (lang === notesSourceLang) continue;
+        // Invalidate stale translation if source changed
+        if (cache._notesSource !== userNotesRaw) {
+          cache.userNotes[lang] = "";
+        }
+        if (!cache.userNotes[lang] && userNotesRaw) {
+          try {
+            cache.userNotes[lang] = await translateText(userNotesRaw, lang, notesSourceLang);
+            summaryChanged = true;
+          } catch (e) {
+            console.warn(
+              `Notes translate [${lang}] failed for ${star.fullName}: ${e.message}`
+            );
+          }
+        }
+      }
+      cache._notesSource = userNotesRaw;
+    } else {
+      // AI disabled: store raw notes under detected source language
+      if (languages.includes(notesSourceLang)) {
+        cache.userNotes[notesSourceLang] = userNotesRaw;
       }
     }
 
-    // Translate user notes
-    let { userNotesEn = "" } = summaries[star.fullName] || {};
-    if (!userNotesEn && userNotesZh && aiAvailable) {
-      try {
-        userNotesEn = await translateToEn(userNotesZh);
-        summaries[star.fullName] = {
-          ...summaries[star.fullName],
-          userNotesEn,
-        };
-        summaryChanged = true;
-      } catch (e) {
-        console.warn(`Notes translate failed for ${star.fullName}: ${e.message}`);
-      }
-    }
+    summaries[star.fullName] = cache;
 
     entries.push({
       fullName: star.fullName,
@@ -171,11 +246,18 @@ async function main() {
       stargazersCount: star.stargazersCount,
       pushedAt: star.pushedAt,
       category,
-      aiIntroZh,
-      aiIntroEn,
-      userNotesZh,
-      userNotesEn: userNotesEn || "",
+      aiIntro: cache.aiIntro || {},
+      userNotes: cache.userNotes || {},
     });
+  }
+
+  // Prune un-starred repos from summaries cache
+  const currentFullNames = new Set(stars.map((s) => s.fullName));
+  for (const key of Object.keys(summaries)) {
+    if (!currentFullNames.has(key)) {
+      delete summaries[key];
+      summaryChanged = true;
+    }
   }
 
   if (summaryChanged) {
@@ -184,16 +266,20 @@ async function main() {
   }
 
   const categories = Array.from(categoriesSet);
-  const totalStars = entries.reduce(
-    (sum, e) => sum + e.stargazersCount,
-    0
-  );
+  const totalStars = entries.reduce((sum, e) => sum + e.stargazersCount, 0);
 
   const merged = {
     categories,
     entries,
     totalStars,
     lastUpdated: new Date().toISOString(),
+    siteConfig: {
+      title: siteTitle,
+      subtitle: siteSubtitle,
+      languages,
+      aiEnabled,
+    },
+    languages,
   };
 
   mkdirSync(dirname(OUTPUT), { recursive: true });
