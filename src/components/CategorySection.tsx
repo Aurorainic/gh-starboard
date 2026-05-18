@@ -17,7 +17,7 @@ export function CategorySection({
   return (
     <section id={`category-${category}`} className="scroll-mt-16">
       <h2 className="text-xl font-bold mb-4 px-1">{category}</h2>
-      <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2">
         {entries.map((entry) => (
           <StarEntry
             key={entry.fullName}

@@ -3,6 +3,7 @@ import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
 import { CategorySection } from "@/components/CategorySection";
 import { EmptyState } from "@/components/EmptyState";
+import { Pagination } from "@/components/Pagination";
 import { Badge } from "@/components/ui/badge";
 import { useStars } from "@/hooks/useStars";
 import { useLanguage } from "@/i18n/useLanguage";
@@ -13,8 +14,14 @@ export default function App() {
     loading,
     searchQuery,
     setSearchQuery,
-    groupedByCategory,
     categories,
+    groupedByCategory,
+    paginatedCategories,
+    page,
+    totalPages,
+    perPage,
+    setPage,
+    setPerPage,
     totalEntries,
     siteConfig,
     availableLanguages,
@@ -38,10 +45,6 @@ export default function App() {
   }, [availableLanguages, language, setLanguage]);
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const categoryEntries = categories.map((cat) => ({
-    category: cat,
-    entries: groupedByCategory[cat] ?? [],
-  }));
 
   // Scroll spy
   useEffect(() => {
@@ -60,12 +63,37 @@ export default function App() {
     const sections = document.querySelectorAll("[id^='category-']");
     sections.forEach((s) => observer.observe(s));
     return () => observer.disconnect();
-  }, [categories]);
+  }, [paginatedCategories]);
 
-  const handleCategoryClick = useCallback((cat: string) => {
-    const el = document.getElementById(`category-${cat}`);
-    el?.scrollIntoView({ behavior: "smooth" });
-  }, []);
+  const handleCategoryClick = useCallback(
+    (cat: string) => {
+      const el = document.getElementById(`category-${cat}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth" });
+        return;
+      }
+      // Category not on current page — find which page it's on and navigate
+      let offset = 0;
+      for (const c of categories) {
+        if (c === cat) break;
+        // Count entries in this category from groupedByCategory
+        offset += (groupedByCategory[c] ?? []).length;
+      }
+      const targetPage = Math.floor(offset / perPage) + 1;
+      if (targetPage !== page) {
+        setPage(targetPage);
+        // Scroll after render
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            document
+              .getElementById(`category-${cat}`)
+              ?.scrollIntoView({ behavior: "smooth" });
+          }, 50);
+        });
+      }
+    },
+    [categories, groupedByCategory, perPage, page, setPage]
+  );
 
   if (loading) {
     return (
@@ -75,7 +103,7 @@ export default function App() {
     );
   }
 
-  const hasResults = categoryEntries.length > 0;
+  const hasResults = paginatedCategories.length > 0;
 
   return (
     <div className="min-h-screen">
@@ -112,7 +140,7 @@ export default function App() {
           {!hasResults && <EmptyState />}
 
           <div className="space-y-10">
-            {categoryEntries.map(({ category, entries }) => (
+            {paginatedCategories.map(({ category, entries }) => (
               <CategorySection
                 key={category}
                 category={category}
@@ -122,6 +150,14 @@ export default function App() {
               />
             ))}
           </div>
+
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            perPage={perPage}
+            onPageChange={setPage}
+            onPerPageChange={setPerPage}
+          />
         </main>
       </div>
     </div>

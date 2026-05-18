@@ -19,6 +19,10 @@ export const translations: Record<string, Record<string, string>> = {
     "time.justNow": "刚刚",
     "empty.title": "没有找到匹配的仓库",
     "empty.description": "试试调整搜索词或清空筛选条件",
+    "pagination.prev": "上一页",
+    "pagination.next": "下一页",
+    "pagination.page": "第 {page} 页，共 {total} 页",
+    "pagination.perPage": "每页显示",
   },
   en: {
     "app.title": "GitHub Stars Notes",
@@ -38,6 +42,10 @@ export const translations: Record<string, Record<string, string>> = {
     "time.justNow": "just now",
     "empty.title": "No matching repositories",
     "empty.description": "Try adjusting your search terms or clearing filters",
+    "pagination.prev": "Previous",
+    "pagination.next": "Next",
+    "pagination.page": "Page {page} of {total}",
+    "pagination.perPage": "Per page",
   },
 };
 
