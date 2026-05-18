@@ -4,6 +4,7 @@ import { type StarEntry as StarEntryType, type Language } from "@/types";
 import { ExternalLink, Star, Clock, Bot, Info } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useT } from "@/i18n/useTranslation";
 
 interface StarEntryProps {
   entry: StarEntryType;
@@ -11,7 +12,7 @@ interface StarEntryProps {
   onTopicClick?: (topic: string) => void;
 }
 
-function timeAgo(date: string, language: Language) {
+function timeAgo(date: string, language: string, justNowText: string) {
   const now = Date.now();
   const pushed = new Date(date).getTime();
   const diff = now - pushed;
@@ -22,28 +23,22 @@ function timeAgo(date: string, language: Language) {
   const months = Math.floor(days / 30);
   const years = Math.floor(days / 365);
 
-  if (language === "zh-CN") {
-    if (minutes < 1) return "刚刚";
-    if (hours < 1) return `${minutes} 分钟前`;
-    if (days < 1) return `${hours} 小时前`;
-    if (months < 1) return `${days} 天前`;
-    if (years < 1) return `${months} 个月前`;
-    return `${years} 年前`;
-  }
+  const rtf = new Intl.RelativeTimeFormat(language, { numeric: "always", style: "narrow" });
 
-  if (minutes < 1) return "just now";
-  if (hours < 1) return `${minutes}m ago`;
-  if (days < 1) return `${hours}h ago`;
-  if (months < 1) return `${days}d ago`;
-  if (years < 1) return `${months}mo ago`;
-  return `${years}y ago`;
+  if (minutes < 1) return justNowText;
+  if (hours < 1) return rtf.format(-minutes, "minute");
+  if (days < 1) return rtf.format(-hours, "hour");
+  if (months < 1) return rtf.format(-days, "day");
+  if (years < 1) return rtf.format(-months, "month");
+  return rtf.format(-years, "year");
 }
 
 export function StarEntry({ entry, language, onTopicClick }: StarEntryProps) {
+  const { t } = useT();
   const aiIntro = entry.aiIntro?.[language] || "";
   const intro = aiIntro || entry.description;
   const notes = entry.userNotes?.[language] || "";
-  const pushedAgo = timeAgo(entry.pushedAt, language);
+  const pushedAgo = timeAgo(entry.pushedAt, language, t("time.justNow"));
   const isAiGenerated = !!aiIntro;
 
   return (
@@ -100,9 +95,7 @@ export function StarEntry({ entry, language, onTopicClick }: StarEntryProps) {
               <Info className="h-3.5 w-3.5 text-muted-foreground" />
             )}
             <p className="text-xs font-medium text-muted-foreground">
-              {isAiGenerated
-                ? (language === "zh-CN" ? "AI 简介" : "AI Intro")
-                : (language === "zh-CN" ? "项目简介" : "Description")}
+              {isAiGenerated ? t("entry.aiIntro") : t("entry.description")}
             </p>
           </div>
           <p className="text-sm text-muted-foreground line-clamp-3">{intro}</p>

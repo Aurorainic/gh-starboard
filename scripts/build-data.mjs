@@ -38,8 +38,18 @@ try {
   const ai = await import("./ai-provider.mjs");
   generateIntro = ai.generateIntro;
   translateText = ai.translateText;
-  aiAvailable = true;
-  console.log("AI provider loaded");
+
+  if (aiEnabled) {
+    try {
+      await ai.healthCheck();
+      aiAvailable = true;
+      console.log("AI provider loaded and verified");
+    } catch (e) {
+      console.error(`AI provider health check failed: ${e.message}`);
+    }
+  } else {
+    console.log("AI provider loaded (AI_ENABLED=off, health check skipped)");
+  }
 } catch {
   console.log("AI provider not available, skipping AI features");
 }
@@ -60,7 +70,7 @@ function loadStars() {
 
 function loadSummaries() {
   if (!existsSync(SUMMARIES_FILE)) {
-    return {};
+    return { data: {}, migrated: false };
   }
 
   const raw = JSON.parse(readFileSync(SUMMARIES_FILE, "utf-8"));
@@ -71,7 +81,7 @@ function loadSummaries() {
     ([, v]) => typeof v.aiIntroZh === "string"
   );
 
-  if (!needsMigration) return raw;
+  if (!needsMigration) return { data: raw, migrated: false };
 
   console.log("Migrating summaries cache from old format...");
   const migrated = {};
@@ -91,7 +101,7 @@ function loadSummaries() {
       migrated[key] = val;
     }
   }
-  return migrated;
+  return { data: migrated, migrated: true };
 }
 
 function saveSummaries(summaries) {
@@ -151,13 +161,13 @@ function parseStarsMd() {
 
 async function main() {
   const stars = loadStars();
-  const summaries = loadSummaries();
+  const { data: summaries, migrated: cacheMigrated } = loadSummaries();
   const notesMap = parseStarsMd();
 
   const categoriesSet = new Set();
   const entries = [];
 
-  let summaryChanged = false;
+  let summaryChanged = cacheMigrated;
 
   for (const star of stars) {
     const noteData = notesMap[star.fullName] || {};
@@ -167,8 +177,16 @@ async function main() {
     const userNotesRaw = noteData.notes || "";
     const cache = summaries[star.fullName] || { aiIntro: {}, userNotes: {} };
 
+    // Priority order for detecting Chinese source language from available languages
+    const ZH_VARIANTS = ["zh-CN", "zh-TW", "zh-HK", "zh-Hans", "zh-Hant", "zh"];
+    const notesSourceLang = ZH_VARIANTS.find((z) => languages.includes(z)) || languages[0] || "zh-CN";
+
     if (aiEnabled && aiAvailable) {
-      // AI intros for each language
+      // AI intros for each language — invalidate if description changed
+      const introSource = `${star.fullName}|${star.description || ""}`;
+      if (cache._introSource !== introSource) {
+        cache.aiIntro = {};
+      }
       for (const lang of languages) {
         if (!cache.aiIntro[lang]) {
           try {
@@ -185,21 +203,22 @@ async function main() {
           }
         }
       }
+      cache._introSource = introSource;
 
-      // User notes: raw = Chinese. zh-CN stores raw, others translate.
-      if (languages.includes("zh-CN")) {
-        cache.userNotes["zh-CN"] = userNotesRaw;
+      // Store raw notes under the detected source language
+      if (languages.includes(notesSourceLang)) {
+        cache.userNotes[notesSourceLang] = userNotesRaw;
       }
 
       for (const lang of languages) {
-        if (lang === "zh-CN") continue;
+        if (lang === notesSourceLang) continue;
         // Invalidate stale translation if source changed
         if (cache._notesSource !== userNotesRaw) {
           cache.userNotes[lang] = "";
         }
         if (!cache.userNotes[lang] && userNotesRaw) {
           try {
-            cache.userNotes[lang] = await translateText(userNotesRaw, lang);
+            cache.userNotes[lang] = await translateText(userNotesRaw, lang, notesSourceLang);
             summaryChanged = true;
           } catch (e) {
             console.warn(
@@ -210,9 +229,9 @@ async function main() {
       }
       cache._notesSource = userNotesRaw;
     } else {
-      // AI disabled: only store raw notes for zh-CN if present in languages
-      if (languages.includes("zh-CN")) {
-        cache.userNotes["zh-CN"] = userNotesRaw;
+      // AI disabled: store raw notes under detected source language
+      if (languages.includes(notesSourceLang)) {
+        cache.userNotes[notesSourceLang] = userNotesRaw;
       }
     }
 

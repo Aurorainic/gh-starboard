@@ -17,9 +17,14 @@ export function CategorySection({
   return (
     <section id={`category-${category}`} className="scroll-mt-16">
       <h2 className="text-xl font-bold mb-4 px-1">{category}</h2>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="space-y-4">
         {entries.map((entry) => (
-          <StarEntry key={entry.fullName} entry={entry} language={language} onTopicClick={onTopicClick} />
+          <StarEntry
+            key={entry.fullName}
+            entry={entry}
+            language={language}
+            onTopicClick={onTopicClick}
+          />
         ))}
       </div>
     </section>

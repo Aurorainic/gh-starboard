@@ -1,9 +1,7 @@
 import { SearchBar } from "@/components/SearchBar";
 import { LanguageToggle } from "@/components/LanguageToggle";
-import { ThemeToggle } from "@/components/ThemeToggle";
-import { useT } from "@/i18n/useTranslation";
-import { useLanguage } from "@/i18n/useLanguage";
 import { type SiteConfig } from "@/types";
+import { useT } from "@/i18n/useTranslation";
 
 interface HeaderProps {
   searchQuery: string;
@@ -20,8 +18,7 @@ export function Header({
   categoriesCount,
   siteConfig,
 }: HeaderProps) {
-  const { t } = useT();
-  const { language } = useLanguage();
+  const { t, language } = useT();
 
   const title = siteConfig.title?.[language] || t("app.title");
   const subtitle = siteConfig.subtitle?.[language] || t("app.subtitle");
@@ -45,7 +42,6 @@ export function Header({
         </div>
 
         <SearchBar value={searchQuery} onChange={onSearchChange} />
-        <ThemeToggle />
         <LanguageToggle />
       </div>
     </header>

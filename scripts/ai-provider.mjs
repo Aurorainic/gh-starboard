@@ -2,7 +2,7 @@ const BASE_URL = process.env.AI_API_BASE_URL || "https://api.openai.com/v1";
 const API_KEY = process.env.AI_API_KEY;
 const MODEL = process.env.AI_MODEL || "gpt-4o-mini";
 
-async function chat(systemPrompt, userMessage) {
+async function chat(systemPrompt, userMessage, maxTokens = 800) {
   if (!API_KEY) {
     throw new Error("AI_API_KEY not set");
   }
@@ -20,7 +20,7 @@ async function chat(systemPrompt, userMessage) {
         { role: "user", content: userMessage },
       ],
       temperature: 0.7,
-      max_tokens: 800,
+      max_tokens: maxTokens,
     }),
   });
 
@@ -39,6 +39,24 @@ const LANG_PROMPTS = {
   en: "You are a GitHub repo intro generator. Write a 50-100 word English summary of the repository's purpose and features. Return only the summary text, no prefixes or quotes.",
 };
 
+const LANG_NAMES = {
+  "zh-CN": "Chinese (Simplified)",
+  "zh-TW": "Chinese (Traditional)",
+  "zh-HK": "Chinese (Traditional, Hong Kong)",
+  "zh-Hans": "Chinese (Simplified)",
+  "zh-Hant": "Chinese (Traditional)",
+  zh: "Chinese",
+  en: "English",
+  fr: "French",
+  ja: "Japanese",
+  de: "German",
+  ko: "Korean",
+  es: "Spanish",
+  pt: "Portuguese",
+  ru: "Russian",
+  ar: "Arabic",
+};
+
 export async function generateIntro(language, repoName, repoDescription) {
   const systemPrompt =
     LANG_PROMPTS[language] ||
@@ -47,7 +65,18 @@ export async function generateIntro(language, repoName, repoDescription) {
   return chat(systemPrompt, userMsg);
 }
 
-export async function translateText(text, targetLanguage) {
-  const systemPrompt = `Translate the following Chinese Markdown text to ${targetLanguage}. Preserve all Markdown formatting (links, bold, italic, code blocks, etc.) exactly. Return only the translated text, no explanations.`;
+export async function translateText(text, targetLanguage, sourceLanguage = "zh-CN") {
+  const sourceName = LANG_NAMES[sourceLanguage] || sourceLanguage;
+  const targetName = LANG_NAMES[targetLanguage] || targetLanguage;
+  const systemPrompt = `Translate the following ${sourceName} Markdown text to ${targetName}. Preserve all Markdown formatting (links, bold, italic, code blocks, etc.) exactly. Return only the translated text, no explanations.`;
   return chat(systemPrompt, text);
+}
+
+export async function healthCheck() {
+  const systemPrompt = "Reply with exactly the word READY and nothing else.";
+  const response = await chat(systemPrompt, "ping", 10);
+  if (response !== "READY") {
+    throw new Error(`AI provider health check failed: expected "READY", got "${response}"`);
+  }
+  return true;
 }

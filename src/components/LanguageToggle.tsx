@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/i18n/useLanguage";
-import { LANGUAGE_LABELS } from "@/i18n/translations";
+import { LANGUAGE_LABELS, getLanguageLabel } from "@/i18n/translations";
 import { Languages } from "lucide-react";
 
 export function LanguageToggle() {
@@ -11,7 +11,7 @@ export function LanguageToggle() {
   const idx = availableLanguages.indexOf(language);
   const nextLang =
     availableLanguages[(idx + 1) % availableLanguages.length];
-  const label = LANGUAGE_LABELS[nextLang] || nextLang;
+  const label = LANGUAGE_LABELS[nextLang] || getLanguageLabel(nextLang);
 
   return (
     <Button
