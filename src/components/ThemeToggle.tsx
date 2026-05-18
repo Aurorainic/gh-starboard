@@ -1,29 +1,43 @@
-import { Monitor, Moon, Sun } from "lucide-react";
+import { Monitor, Moon, Sun, Check } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
-const icons = {
-  auto: Monitor,
-  dark: Moon,
-  light: Sun,
-};
-
-const labels: Record<string, string> = {
-  auto: "Auto",
-  dark: "Dark",
-  light: "Light",
-};
+const themeOptions = [
+  { value: "auto" as const, icon: Monitor, label: "Auto" },
+  { value: "dark" as const, icon: Moon, label: "Dark" },
+  { value: "light" as const, icon: Sun, label: "Light" },
+];
 
 export function ThemeToggle() {
-  const { theme, cycle } = useTheme();
-  const Icon = icons[theme];
+  const { theme, setTheme } = useTheme();
+  const CurrentIcon =
+    themeOptions.find((o) => o.value === theme)?.icon ?? Monitor;
 
   return (
-    <button
-      onClick={cycle}
-      className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-input bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-      title={`Theme: ${labels[theme]}`}
-    >
-      <Icon className="h-4 w-4" />
-    </button>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-input bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
+          <CurrentIcon className="h-4 w-4" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-32">
+        {themeOptions.map(({ value, icon: Icon, label }) => (
+          <DropdownMenuItem
+            key={value}
+            onClick={() => setTheme(value)}
+            className="gap-2"
+          >
+            <Icon className="h-4 w-4" />
+            <span className="flex-1">{label}</span>
+            {theme === value && <Check className="h-4 w-4" />}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

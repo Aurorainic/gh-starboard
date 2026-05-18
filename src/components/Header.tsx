@@ -1,5 +1,8 @@
+import { Star, LayoutList } from "lucide-react";
 import { SearchBar } from "@/components/SearchBar";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { type SiteConfig } from "@/types";
 import { useT } from "@/i18n/useTranslation";
 
@@ -35,14 +38,31 @@ export function Header({
 
         <div className="flex-1" />
 
-        <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
-          <span>{t("stats.totalStars", { count: totalEntries })}</span>
+        <div className="hidden sm:flex items-center gap-3 text-sm text-muted-foreground">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex items-center gap-1 cursor-default">
+                <Star className="h-3.5 w-3.5" />
+                {totalEntries}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{t("stats.totalStars", { count: totalEntries })}</TooltipContent>
+          </Tooltip>
           <span>·</span>
-          <span>{t("stats.categories", { count: categoriesCount })}</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex items-center gap-1 cursor-default">
+                <LayoutList className="h-3.5 w-3.5" />
+                {categoriesCount}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{t("stats.categories", { count: categoriesCount })}</TooltipContent>
+          </Tooltip>
         </div>
 
         <SearchBar value={searchQuery} onChange={onSearchChange} />
         <LanguageToggle />
+        <ThemeToggle />
       </div>
     </header>
   );

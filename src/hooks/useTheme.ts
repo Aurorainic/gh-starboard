@@ -38,5 +38,7 @@ export function useTheme() {
     });
   };
 
-  return { theme, cycle };
+  const setTheme = (t: Theme) => setThemeState(t);
+
+  return { theme, cycle, setTheme };
 }

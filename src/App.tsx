@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { CategorySection } from "@/components/CategorySection";
 import { EmptyState } from "@/components/EmptyState";
 import { Pagination } from "@/components/Pagination";
+import { Footer } from "@/components/Footer";
 import { Badge } from "@/components/ui/badge";
 import { useStars } from "@/hooks/useStars";
 import { useLanguage } from "@/i18n/useLanguage";
@@ -25,6 +26,7 @@ export default function App() {
     totalEntries,
     siteConfig,
     availableLanguages,
+    lastUpdated,
   } = useStars(language);
 
   // Sync available languages from data into context
@@ -34,15 +36,16 @@ export default function App() {
     }
   }, [availableLanguages, setAvailableLanguages]);
 
-  // Correct language if current is not in available list
+  // Correct language only after data has loaded
   useEffect(() => {
     if (
+      !loading &&
       availableLanguages.length > 0 &&
       !availableLanguages.includes(language)
     ) {
       setLanguage(availableLanguages[0]);
     }
-  }, [availableLanguages, language, setLanguage]);
+  }, [loading, availableLanguages, language, setLanguage]);
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
@@ -160,6 +163,8 @@ export default function App() {
           />
         </main>
       </div>
+
+      <Footer lastUpdated={lastUpdated} />
     </div>
   );
 }
