@@ -389,7 +389,7 @@ async function main() {
     });
 
     if (toCategorize.length > 0) {
-      const BATCH_SIZE = 10;
+      const BATCH_SIZE = 5;
       console.log(`AI batch categorizing ${toCategorize.length} repo(s) in groups of ${BATCH_SIZE}...`);
       let currentCategories = Array.from(categoriesSet);
       const failedRepos = [];
@@ -434,6 +434,7 @@ async function main() {
       // Retry failed repos individually
       if (failedRepos.length > 0) {
         console.log(`Retrying ${failedRepos.length} failed repo(s) individually...`);
+        let retrySuccess = 0;
         for (const entry of failedRepos) {
           try {
             const category = await suggestCategory(entry.fullName, entry.description, entry.topics, entry.language);
@@ -449,6 +450,7 @@ async function main() {
               summaries[entry.fullName]._aiCategoryDesc = entry.description;
               summaries[entry.fullName]._aiCategoryVer = AI_CATEGORY_PROMPT_VER;
               summaryChanged = true;
+              retrySuccess++;
             } else {
               aiErrors.category.count++;
               aiErrors.category.repos.push({ repo: entry.fullName, error: "no valid category returned" });
@@ -458,6 +460,7 @@ async function main() {
             aiErrors.category.repos.push({ repo: entry.fullName, error: e.message });
           }
         }
+        console.log(`  Retry complete: ${retrySuccess}/${failedRepos.length} succeeded`);
       }
     } else {
       console.log("No new uncategorized repos to categorize");
