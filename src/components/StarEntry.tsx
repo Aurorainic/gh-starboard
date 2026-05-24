@@ -21,7 +21,8 @@ export function StarEntry({ entry, language, onTopicClick }: StarEntryProps) {
   const intro = aiIntro || entry.description;
   const notes = entry.userNotes?.[language] || "";
   const pushedAgo = timeAgo(entry.pushedAt, language, t("time.justNow"));
-  const daysSincePush = Math.floor((Date.now() - new Date(entry.pushedAt).getTime()) / 86400000);
+  const pushedTime = entry.pushedAt ? new Date(entry.pushedAt).getTime() : 0;
+  const daysSincePush = pushedTime ? Math.floor((Date.now() - pushedTime) / 86400000) : 0;
   const staleClass = daysSincePush >= 365 ? "text-red-500" : daysSincePush >= 180 ? "text-yellow-500" : "";
   const isAiGenerated = !!aiIntro;
   const visibleTopics = topicsExpanded ? entry.topics : entry.topics.slice(0, 5);

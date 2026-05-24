@@ -215,6 +215,7 @@ async function main() {
   const AI_CATEGORY_PROMPT_VER = 2; // bump to force re-categorization
 
   let summaryChanged = cacheMigrated;
+  let aiErrors = { intro: 0, translate: 0, category: 0 };
 
   for (const star of stars) {
     const noteData = notesMap[star.fullName] || {};
@@ -272,6 +273,7 @@ async function main() {
             }
             summaryChanged = true;
           } catch (e) {
+            aiErrors.intro++;
             console.warn(
               `AI intro [${lang}] failed for ${star.fullName}: ${e.message}`
             );
@@ -296,6 +298,7 @@ async function main() {
             cache.userNotes[lang] = await translateText(userNotesRaw, lang, notesSourceLang);
             summaryChanged = true;
           } catch (e) {
+            aiErrors.translate++;
             console.warn(
               `Notes translate [${lang}] failed for ${star.fullName}: ${e.message}`
             );
@@ -376,12 +379,14 @@ async function main() {
             categoriesSet.add(suggested);
             aiCategories.add(suggested);
             // Track in cache for incremental updates
+            if (!summaries[entry.fullName]) summaries[entry.fullName] = { aiIntro: {}, userNotes: {} };
             summaries[entry.fullName]._aiCategory = suggested;
             summaries[entry.fullName]._aiCategoryDesc = entry.description;
             summaries[entry.fullName]._aiCategoryVer = AI_CATEGORY_PROMPT_VER;
             summaryChanged = true;
           }
         } catch (e) {
+          aiErrors.category++;
           console.warn(`AI categorize failed for ${entry.fullName}: ${e.message}`);
         }
       }
@@ -476,6 +481,12 @@ async function main() {
 
   mkdirSync(dirname(OUTPUT), { recursive: true });
   writeFileSync(OUTPUT, JSON.stringify(merged, null, 2), "utf-8");
+
+  const totalErrors = aiErrors.intro + aiErrors.translate + aiErrors.category;
+  if (totalErrors > 0) {
+    console.warn(`AI errors: ${aiErrors.intro} intro, ${aiErrors.translate} translate, ${aiErrors.category} category`);
+  }
+
   console.log(
     `Built merged.json: ${entries.length} entries, ${categories.length} categories`
   );

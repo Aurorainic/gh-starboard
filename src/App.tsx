@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
 import { CategorySection } from "@/components/CategorySection";
@@ -68,6 +68,7 @@ export default function App() {
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const pendingScrollRef = useRef<string | null>(null);
 
   // Show back-to-top button when scrolled down
   useEffect(() => {
@@ -95,6 +96,17 @@ export default function App() {
     return () => observer.disconnect();
   }, [paginatedCategories]);
 
+  // Scroll to pending category after page change renders it
+  useEffect(() => {
+    const cat = pendingScrollRef.current;
+    if (!cat) return;
+    const el = document.getElementById(`category-${cat}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth" });
+      pendingScrollRef.current = null;
+    }
+  }, [paginatedCategories]);
+
   const handleCategoryClick = useCallback(
     (cat: string) => {
       const el = document.getElementById(`category-${cat}`);
@@ -105,14 +117,8 @@ export default function App() {
       // Category not on current page — find which page it's on via categoryPages
       const targetPage = categoryPages.findIndex((slices) => slices.some((s) => s.category === cat)) + 1;
       if (targetPage > 0 && targetPage !== page) {
+        pendingScrollRef.current = cat;
         setPage(targetPage);
-        requestAnimationFrame(() => {
-          setTimeout(() => {
-            document
-              .getElementById(`category-${cat}`)
-              ?.scrollIntoView({ behavior: "smooth" });
-          }, 50);
-        });
       }
     },
     [categoryPages, page, setPage]

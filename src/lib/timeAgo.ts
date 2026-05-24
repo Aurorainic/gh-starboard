@@ -1,6 +1,8 @@
 export function timeAgo(date: string, language: string, justNowText: string) {
+  if (!date) return justNowText;
   const now = Date.now();
   const pushed = new Date(date).getTime();
+  if (isNaN(pushed)) return justNowText;
   const diff = now - pushed;
   const seconds = Math.floor(diff / 1000);
   const minutes = Math.floor(seconds / 60);

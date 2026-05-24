@@ -107,9 +107,11 @@ export function useStars(language: Language) {
     if (sortBy === "stars") {
       sorted.sort((a, b) => b.stargazersCount - a.stargazersCount);
     } else if (sortBy === "updated") {
-      sorted.sort(
-        (a, b) => new Date(b.pushedAt).getTime() - new Date(a.pushedAt).getTime()
-      );
+      const timeMap = new Map<string, number>();
+      for (const e of sorted) {
+        if (!timeMap.has(e.pushedAt)) timeMap.set(e.pushedAt, new Date(e.pushedAt).getTime() || 0);
+      }
+      sorted.sort((a, b) => (timeMap.get(b.pushedAt) ?? 0) - (timeMap.get(a.pushedAt) ?? 0));
     } else if (sortBy === "name") {
       sorted.sort((a, b) => a.fullName.localeCompare(b.fullName));
     }

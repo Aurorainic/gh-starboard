@@ -29,7 +29,7 @@ export function Pagination({
 
   const handleJump = () => {
     const n = parseInt(pageInput, 10);
-    if (n >= 1 && n <= totalPages && n !== page) {
+    if (!isNaN(n) && n >= 1 && n <= totalPages && n !== page) {
       onPageChange(n);
     } else {
       setPageInput(String(page));

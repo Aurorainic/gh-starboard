@@ -10,6 +10,14 @@ import { DEFAULT_LANGUAGE } from "@/i18n/translations";
 
 const STORAGE_KEY = "language";
 
+function safeGetStorage(key: string): string | null {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+
+function safeSetStorage(key: string, value: string): void {
+  try { localStorage.setItem(key, value); } catch { /* blocked */ }
+}
+
 function detectBrowserLanguage(): string {
   const nav = navigator.language;
   if (nav) return nav;
@@ -49,17 +57,17 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   ]);
   const [uiTranslations, setUITranslations] = useState<Record<string, Record<string, string>>>({});
   const [language, setLanguageState] = useState<string>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = safeGetStorage(STORAGE_KEY);
     if (saved) return saved;
     return detectBrowserLanguage();
   });
 
   // Only persist after user explicitly sets language or data validates it
-  const userChoseRef = useRef(!!localStorage.getItem(STORAGE_KEY));
+  const userChoseRef = useRef(!!safeGetStorage(STORAGE_KEY));
 
   useEffect(() => {
     if (userChoseRef.current) {
-      localStorage.setItem(STORAGE_KEY, language);
+      safeSetStorage(STORAGE_KEY,language);
     }
   }, [language]);
 
@@ -77,7 +85,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         const matched = matchBrowserLanguage(langs);
         if (matched) {
           setLanguageState(matched);
-          localStorage.setItem(STORAGE_KEY, matched);
+          safeSetStorage(STORAGE_KEY,matched);
           userChoseRef.current = true;
         }
       }
