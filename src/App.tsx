@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { useStars } from "@/hooks/useStars";
 import { useLanguage } from "@/i18n/useLanguage";
 import { useT } from "@/i18n/useTranslation";
+import { FilterBar } from "@/components/FilterBar";
 import { Loader2, AlertCircle, ChevronUp } from "lucide-react";
 
 export default function App() {
@@ -21,6 +22,9 @@ export default function App() {
     setSearchQuery,
     sortBy,
     setSortBy,
+    filters,
+    setFilters,
+    entryLanguages,
     categories,
     groupedByCategory,
     paginatedCategories,
@@ -89,17 +93,17 @@ export default function App() {
         el.scrollIntoView({ behavior: "smooth" });
         return;
       }
-      // Category not on current page — find which page it's on and navigate
-      let offset = 0;
-      for (const c of categories) {
-        if (c === cat) break;
-        // Count entries in this category from groupedByCategory
-        offset += (groupedByCategory[c] ?? []).length;
+      // Category not on current page — find which page it's on
+      const catIndex = categories.indexOf(cat);
+      if (catIndex === -1) return;
+      // Count entries up to this category to determine page
+      let count = 0;
+      for (let i = 0; i < catIndex; i++) {
+        count += (groupedByCategory[categories[i]] ?? []).length;
       }
-      const targetPage = Math.floor(offset / perPage) + 1;
+      const targetPage = Math.floor(count / perPage) + 1;
       if (targetPage !== page) {
         setPage(targetPage);
-        // Scroll after render
         requestAnimationFrame(() => {
           setTimeout(() => {
             document
@@ -142,6 +146,7 @@ export default function App() {
       <Header
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        onHomeClick={() => { setSearchQuery(""); window.scrollTo({ top: 0 }); }}
         sortBy={sortBy}
         onSortChange={setSortBy}
         totalEntries={totalEntries}
@@ -157,8 +162,15 @@ export default function App() {
         />
 
         <main className="flex-1 min-w-0 px-4 py-6 lg:px-8">
+          <FilterBar
+            filters={filters}
+            onFiltersChange={setFilters}
+            categories={categories}
+            languages={entryLanguages}
+          />
+
           {/* Mobile category bar */}
-          <div className="flex lg:hidden flex-wrap gap-1.5 mb-6">
+          <div className="flex lg:hidden flex-wrap gap-1.5 my-4">
             {categories.map((cat) => (
               <Badge
                 key={cat}

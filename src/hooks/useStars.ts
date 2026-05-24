@@ -7,6 +7,13 @@ const DEBOUNCE_MS = 300;
 
 export type SortKey = "starred" | "stars" | "updated" | "name";
 
+export interface Filters {
+  languages: string[];
+  minStars: number;
+  maxStars: number;
+  category: string;
+}
+
 export function useStars(language: Language) {
   const [data, setData] = useState<MergedData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -14,6 +21,7 @@ export function useStars(language: Language) {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("starred");
+  const [filters, setFilters] = useState<Filters>({ languages: [], minStars: 0, maxStars: Infinity, category: "" });
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(DEFAULT_PER_PAGE);
   const debounceTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -53,6 +61,7 @@ export function useStars(language: Language) {
     const q = debouncedQuery.toLowerCase().trim();
     let result = data.entries;
 
+    // Search filter
     if (q) {
       if (q.startsWith("topic:")) {
         const topicQ = q.slice(6).trim();
@@ -77,6 +86,20 @@ export function useStars(language: Language) {
       }
     }
 
+    // Advanced filters
+    if (filters.category) {
+      result = result.filter((e) => e.category === filters.category);
+    }
+    if (filters.languages.length > 0) {
+      const langSet = new Set(filters.languages);
+      result = result.filter((e) => langSet.has(e.language));
+    }
+    if (filters.minStars > 0 || filters.maxStars < Infinity) {
+      result = result.filter(
+        (e) => e.stargazersCount >= filters.minStars && e.stargazersCount <= filters.maxStars
+      );
+    }
+
     // Sort (starred = original API order, most recently starred first)
     const sorted = [...result];
     if (sortBy === "stars") {
@@ -91,7 +114,7 @@ export function useStars(language: Language) {
     // "starred" = no sort, keep original order
 
     return sorted;
-  }, [data, debouncedQuery, language, sortBy]);
+  }, [data, debouncedQuery, language, sortBy, filters]);
 
   const groupedByCategory = useMemo(() => {
     const map: Record<string, StarEntry[]> = {};
@@ -107,39 +130,43 @@ export function useStars(language: Language) {
     [data, groupedByCategory]
   );
 
-  // Reset page when search, perPage, or sort changes
+  // Reset page when search, perPage, sort, or filters change
   useEffect(() => {
     setPage(1);
-  }, [debouncedQuery, perPage, sortBy]);
+  }, [debouncedQuery, perPage, sortBy, filters]);
 
-  // Paginate across all filtered entries, preserving category grouping
-  const totalPages = Math.max(1, Math.ceil(filteredEntries.length / perPage));
+  // Paginate by category groups — never split a category across pages
+  const categoryPages: string[][] = useMemo(() => {
+    const pages: string[][] = [];
+    let current: string[] = [];
+    let count = 0;
+    for (const cat of categories) {
+      const size = (groupedByCategory[cat] ?? []).length;
+      if (current.length > 0 && count + size > perPage) {
+        pages.push(current);
+        current = [];
+        count = 0;
+      }
+      current.push(cat);
+      count += size;
+    }
+    if (current.length > 0) pages.push(current);
+    return pages.length > 0 ? pages : [[]];
+  }, [categories, groupedByCategory, perPage]);
+
+  const totalPages = categoryPages.length;
   const currentPage = Math.min(page, totalPages);
 
   const paginatedCategories = useMemo(() => {
-    const start = (currentPage - 1) * perPage;
-    const end = start + perPage;
-    let skipped = 0;
-    const result: { category: string; entries: StarEntry[] }[] = [];
+    const cats = categoryPages[currentPage - 1] ?? [];
+    return cats.map((category) => ({ category, entries: groupedByCategory[category] ?? [] }));
+  }, [categoryPages, currentPage, groupedByCategory]);
 
-    for (const cat of categories) {
-      const catEntries = groupedByCategory[cat] ?? [];
-      const pageEntries: StarEntry[] = [];
-
-      for (const entry of catEntries) {
-        if (skipped >= start && skipped < end) {
-          pageEntries.push(entry);
-        }
-        skipped++;
-      }
-
-      if (pageEntries.length > 0) {
-        result.push({ category: cat, entries: pageEntries });
-      }
-    }
-
-    return result;
-  }, [categories, groupedByCategory, currentPage, perPage]);
+  // Derive unique languages from entries for the filter UI
+  const entryLanguages = useMemo(() => {
+    if (!data) return [];
+    return [...new Set(data.entries.map((e) => e.language).filter(Boolean))].sort();
+  }, [data]);
 
   return {
     loading,
@@ -148,6 +175,9 @@ export function useStars(language: Language) {
     setSearchQuery,
     sortBy,
     setSortBy,
+    filters,
+    setFilters,
+    entryLanguages,
     filteredEntries,
     groupedByCategory,
     categories,
