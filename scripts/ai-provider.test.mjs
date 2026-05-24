@@ -129,18 +129,20 @@ describe("ai-provider", () => {
       ).rejects.toThrow("Invalid response format");
     });
 
-    it("throws if category is missing", async () => {
+    it("returns intro with empty category when category is missing", async () => {
       mockChatResponse("This is a React UI library.");
-      await expect(
-        ai.generateIntroAndCategory("en", "owner/repo", "desc", [], "TS")
-      ).rejects.toThrow("Invalid response format");
+      const result = await ai.generateIntroAndCategory(
+        "en", "owner/repo", "desc", [], "TS"
+      );
+      expect(result.intro).toBe("This is a React UI library.");
+      expect(result.category).toBe("");
     });
 
-    it("throws if both are empty", async () => {
-      mockChatResponse("");
+    it("throws if intro is empty", async () => {
+      mockChatResponse("|||CATEGORY: React UI Library");
       await expect(
         ai.generateIntroAndCategory("en", "owner/repo", "desc", [], "TS")
-      ).rejects.toThrow("Invalid response format");
+      ).rejects.toThrow("intro is empty");
     });
   });
 

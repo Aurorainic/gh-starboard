@@ -153,12 +153,16 @@ Nothing else. No markdown, no extra text.`;
     }
   }
 
-  // Validate both fields are non-empty
-  if (!intro || !category) {
+  // Validate: intro is required, category is best-effort
+  if (!intro) {
     throw new Error(
-      `Invalid response format from generateIntroAndCategory: intro="${intro}", category="${category}". ` +
-      `Expected two lines: summary and |||CATEGORY: name. Got: ${result.substring(0, 100)}`
+      `Invalid response format from generateIntroAndCategory: intro is empty. ` +
+      `Got: ${result.substring(0, 200)}`
     );
+  }
+
+  if (!category) {
+    console.warn(`Missing category for ${repoName}, intro generated successfully`);
   }
 
   return { intro, category };
