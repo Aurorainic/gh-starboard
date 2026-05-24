@@ -8,13 +8,13 @@
 > [!NOTE]
 > 本项目目前处在早期阶段。
 
-[English](README.md) | **简体中文** | [在线示例](https://aurorainic.github.io/gh-starboard/)
+[English](README.md) | **简体中文** | [在线示例](https://gh-starboard.pages.dev/)
 
 ## 快速概览
 
 - 目的：从 GitHub Stars 构建静态多语言站点，支持自定义 Markdown 笔记与可选 AI 自动简介。
 - 数据来源：GitHub Stars（API 拉取） + `content/stars.md` 中的用户笔记
-- 输出：`dist/`（静态站，可部署到 GitHub Pages、Netlify、Vercel 等）
+- 输出：`dist/`（静态站，可部署到 Cloudflare Pages、Netlify 等）
 
 ## 目录
 
@@ -29,8 +29,8 @@
     - [站点标题与语言](#站点标题与语言)
     - [内容结构](#内容结构)
   - [部署](#部署)
-    - [GitHub Pages](#github-pages)
-    - [其他平台（以 Netlify 为例）](#其他平台以-netlify-为例)
+    - [Cloudflare Pages](#cloudflare-pages)
+    - [其他平台](#其他平台)
   - [配置参考](#配置参考)
   - [AI 配置](#ai-配置)
     - [D1 外置缓存（推荐）](#d1-外置缓存推荐)
@@ -61,13 +61,15 @@
 ## 快速开始
 
 1. **Fork** 本仓库
-2. **启用 GitHub Actions**（Settings → Actions → Allow all actions）
-3. **设置仓库 Secrets**（Settings → Secrets and variables → Actions）— 完整变量列表见[配置参考](#配置参考)。最低要求：
+2. 前往 [Cloudflare Pages](https://pages.cloudflare.com/) **导入**你的 fork
+3. 设置所需的环境变量（完整列表见[配置参考](#配置参考)）。最低要求：
    - `GH_TOKEN` — [GitHub personal access token](https://github.com/settings/tokens)
    - `GH_USERNAME` — 你的 GitHub 用户名
-4. **手动触发工作流**（Actions → Build & Deploy → Run workflow），或 push 到 `main`
+   - `NODE_VERSION` — `24`
+4. 设置 **Build command** 为 `pnpm run all`，**Build output directory** 为 `dist`
+5. 部署 — Cloudflare Pages 会在每次 push 后自动构建部署
 
-站点将自动部署到 GitHub Pages。其他平台（Cloudflare Pages、Vercel、Netlify 等）导入 fork 仓库并设置相同的环境变量即可。
+其他平台（Netlify 等）在托管商设置中配置相同的环境变量即可。
 
 ### 本地开发
 
@@ -146,11 +148,17 @@ pnpm run all      # 拉取 stars → AI 生成 → vite build → dist/
 
 `dist/` 是纯静态站点，可部署到任意托管平台。
 
-### GitHub Pages
+### Cloudflare Pages
 
-项目内置 [GitHub Actions 工作流](.github/workflows/deploy.yml) 支持自动化构建（push to main、每日定时、手动触发）。在仓库设置中配置所需的 Secrets 即可。
+[Cloudflare Pages](https://pages.cloudflare.com/) 是推荐的部署平台。
 
-另有 [PR 检查工作流](.github/workflows/check.yml) 在 PR 到 `main` 时运行 typecheck + build。
+| 设置项 | 值 |
+|--------|-----|
+| Build command | `pnpm run all` |
+| Build output directory | `dist` |
+| 环境变量 | `NODE_VERSION=24` |
+
+> **注意**：Build command 必须填 `pnpm run all`（而非 `pnpm run build`），它会先执行完整的数据管道（拉取 stars + AI 生成）再构建前端。在 Settings > Environment variables 中设置 `GH_TOKEN`、`GH_USERNAME` 及其他所需变量。
 
 ### 其他平台
 
@@ -163,19 +171,6 @@ pnpm run all      # 拉取 stars → AI 生成 → vite build → dist/
 | Publish directory | `dist` |
 
 > **注意**：Build command 必须填 `pnpm run all`（而非 `pnpm run build`），它会先执行完整的数据管道（拉取 stars + AI 生成）再构建前端。同时在 Site settings > Environment variables 中设置 `GH_TOKEN` 和 `GH_USERNAME`。
-
-</details>
-
-<details>
-<summary>Cloudflare Pages</summary>
-
-| 设置项 | 值 |
-|--------|-----|
-| Build command | `pnpm run all` |
-| Build output directory | `dist` |
-| 环境变量 | `NODE_VERSION=24` |
-
-> **注意**：Build command 必须填 `pnpm run all`（而非 `pnpm run build`）。在 Settings > Environment variables 中设置 `GH_TOKEN`、`GH_USERNAME` 及其他所需变量。
 
 </details>
 
@@ -195,7 +190,6 @@ pnpm run all      # 拉取 stars → AI 生成 → vite build → dist/
 | `SITE_TITLE` | 否 | 自定义标题，JSON 格式，按语言代码索引 |
 | `SITE_SUBTITLE` | 否 | 自定义副标题，JSON 格式，按语言代码索引 |
 | `PROJECT_URL` | 否 | 自定义页脚项目链接 |
-| `REFRESH_DAYS` | 否 | 定时刷新间隔天数（默认 1）。仓库级变量 |
 | `CLOUDFLARE_API_TOKEN` | 推荐 | Cloudflare API Token（D1 外置缓存） |
 | `CLOUDFLARE_ACCOUNT_ID` | 推荐 | Cloudflare 账号 ID |
 | `D1_DATABASE_ID` | 推荐 | D1 数据库 ID |
@@ -323,7 +317,7 @@ build-data.mjs            │
 | 主题 | auto / dark / light 三模式，防闪烁 |
 | 缓存 | Cloudflare D1（构建时外置） / 本地文件（降级） |
 | 测试 | Vitest + @testing-library/react |
-| 部署 | GitHub Pages + GitHub Actions（push / 定时 / 手动） |
+| 部署 | Cloudflare Pages / Netlify |
 
 ## 贡献与许可
 

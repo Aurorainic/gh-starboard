@@ -8,13 +8,13 @@
 > [!NOTE]
 > This project is currently in the early stages of development.
 
-**English** | [简体中文](README_zh-CN.md) | [Live Demo](https://aurorainic.github.io/gh-starboard/)
+**English** | [简体中文](README_zh-CN.md) | [Live Demo](https://gh-starboard.pages.dev/)
 
 ## Quick overview
 
 - Purpose: Build a static, multi-language site from your GitHub stars with handwritten Markdown notes and optional AI-generated summaries.
 - Data source: GitHub Stars (fetched via API) + `content/stars.md` for user notes
-- Output: Static site in `dist/` (deployable to GitHub Pages, Netlify, Vercel, etc.)
+- Output: Static site in `dist/` (deployable to Cloudflare Pages, Netlify, etc.)
 
 ## Table of contents
 
@@ -29,8 +29,8 @@
     - [Site title \& languages](#site-title--languages)
     - [Content structure](#content-structure)
   - [Deploy](#deploy)
-    - [GitHub Pages](#github-pages)
-    - [Other platforms Configuration](#other-platforms-configuration)
+    - [Cloudflare Pages](#cloudflare-pages)
+    - [Other platforms](#other-platforms)
   - [Configuration reference](#configuration-reference)
   - [AI provider](#ai-provider)
     - [D1 external cache (recommended)](#d1-external-cache-recommended)
@@ -62,13 +62,15 @@
 ## Quick start
 
 1. **Fork** this repository
-2. **Enable GitHub Actions** in your fork (Settings → Actions → Allow all actions)
-3. **Set repository secrets** (Settings → Secrets and variables → Actions) — see [Configuration Reference](#configuration-reference) for the full list. At minimum:
+2. Go to [Cloudflare Pages](https://pages.cloudflare.com/) and **import** your fork
+3. Set the required environment variables (see [Configuration Reference](#configuration-reference)). At minimum:
    - `GH_TOKEN` — [GitHub personal access token](https://github.com/settings/tokens)
    - `GH_USERNAME` — your GitHub username
-4. **Trigger the workflow** manually (Actions → Build & Deploy → Run workflow), or push to `main`
+   - `NODE_VERSION` — `24`
+4. Set **Build command** to `pnpm run all` and **Build output directory** to `dist`
+5. Deploy — Cloudflare Pages will build and deploy automatically on every push
 
-The site will be deployed to GitHub Pages automatically. For other platforms (Cloudflare Pages, Vercel, Netlify, etc.), import your fork and set the same environment variables.
+For other platforms (Netlify, etc.), set the same environment variables in your hosting provider's settings.
 
 ### Local development
 
@@ -148,13 +150,19 @@ pnpm run all      # fetch stars → AI generate → vite build → dist/
 
 The `dist/` folder is a static site — deploy to any hosting provider.
 
-### GitHub Pages
+### Cloudflare Pages
 
-A [GitHub Actions workflow](.github/workflows/deploy.yml) is included for automated builds (push to `main`, daily schedule, or manual trigger). Set the required secrets in your repository settings.
+[Cloudflare Pages](https://pages.cloudflare.com/) is the recommended deployment platform.
 
-A [PR check workflow](.github/workflows/check.yml) runs typecheck + build on pull requests to `main`.
+| Setting | Value |
+|---------|-------|
+| Build command | `pnpm run all` |
+| Build output directory | `dist` |
+| Environment variable | `NODE_VERSION=24` |
 
-### Other platforms Configuration
+> **Important**: Use `pnpm run all` (not `pnpm run build`) as the build command — it runs the full data pipeline (fetch stars + AI generate) before building the frontend. Set `GH_TOKEN`, `GH_USERNAME`, and other required variables in Settings > Environment variables.
+
+### Other platforms
 
 <details>
 <summary>Netlify</summary>
@@ -165,19 +173,6 @@ A [PR check workflow](.github/workflows/check.yml) runs typecheck + build on pul
 | Publish directory | `dist` |
 
 > **Important**: Use `pnpm run all` (not `pnpm run build`) as the build command — it runs the full data pipeline (fetch stars + AI generate) before building the frontend. Also set `GH_TOKEN` and `GH_USERNAME` in Site settings > Environment variables.
-
-</details>
-
-<details>
-<summary>Cloudflare Pages</summary>
-
-| Setting | Value |
-|---------|-------|
-| Build command | `pnpm run all` |
-| Build output directory | `dist` |
-| Environment variable | `NODE_VERSION=24` |
-
-> **Important**: Use `pnpm run all` (not `pnpm run build`) as the build command. Set `GH_TOKEN`, `GH_USERNAME`, and other required variables in Settings > Environment variables.
 
 </details>
 
@@ -197,7 +192,6 @@ A [PR check workflow](.github/workflows/check.yml) runs typecheck + build on pul
 | `SITE_TITLE` | No | Custom site title, JSON keyed by language code |
 | `SITE_SUBTITLE` | No | Custom site subtitle, JSON keyed by language code |
 | `PROJECT_URL` | No | Custom footer project URL |
-| `REFRESH_DAYS` | No | Scheduled refresh interval in days (default: 1). Repository variable |
 | `CLOUDFLARE_API_TOKEN` | Recommended | Cloudflare API token for D1 external cache |
 | `CLOUDFLARE_ACCOUNT_ID` | Recommended | Cloudflare account ID |
 | `D1_DATABASE_ID` | Recommended | D1 database ID |
@@ -336,7 +330,7 @@ build-data.mjs            │
 | Theme | auto / dark / light with anti-flash |
 | Cache | Cloudflare D1 (build-time external) / local file (fallback) |
 | Testing | Vitest + @testing-library/react |
-| Deploy | GitHub Pages + GitHub Actions (push / daily / manual) |
+| Deploy | Cloudflare Pages / Netlify |
 
 ## Contributing
 
