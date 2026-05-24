@@ -192,6 +192,7 @@ A [PR check workflow](.github/workflows/check.yml) runs typecheck + build on pul
 | `AI_MODEL` | No | Model name (default: `gpt-4o-mini`) |
 | `AI_ENABLED` | No | `on` / `off` (default: `on`) |
 | `AI_AUTO_CATEGORY` | No | `on` / off (default: off). Auto-categorize uncategorized repos via AI |
+| `AI_CONCURRENCY` | No | Concurrent AI requests (default: `3`). Lower values reduce API rate limits |
 | `SITE_LANGUAGES` | No | Comma-separated language codes (default: `en`). Only keep languages you need — each extra language adds AI calls |
 | `SITE_TITLE` | No | Custom site title, JSON keyed by language code |
 | `SITE_SUBTITLE` | No | Custom site subtitle, JSON keyed by language code |

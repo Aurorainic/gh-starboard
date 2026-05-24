@@ -190,6 +190,7 @@ pnpm run all      # 拉取 stars → AI 生成 → vite build → dist/
 | `AI_MODEL` | 否 | 模型名（默认 `gpt-4o-mini`） |
 | `AI_ENABLED` | 否 | `on` / `off`（默认 `on`） |
 | `AI_AUTO_CATEGORY` | 否 | `on` / off（默认 off）。AI 自动分类未归类仓库 |
+| `AI_CONCURRENCY` | 否 | 并发 AI 请求数（默认 `3`）。较低的值可减少 API 频率限制 |
 | `SITE_LANGUAGES` | 否 | 语言列表，逗号分隔（默认 `en`）。不需要多语言时只保留需要的，避免额外 AI 开销 |
 | `SITE_TITLE` | 否 | 自定义标题，JSON 格式，按语言代码索引 |
 | `SITE_SUBTITLE` | 否 | 自定义副标题，JSON 格式，按语言代码索引 |

@@ -1,8 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { Sidebar } from "@/components/Sidebar";
-import { LanguageProvider, LanguageContext } from "@/i18n/context";
+import { LanguageContext } from "@/i18n/context";
 import { type SortKey, type Filters } from "@/hooks/useStars";
 
 interface CategoryCount {
