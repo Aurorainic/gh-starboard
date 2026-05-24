@@ -36,8 +36,6 @@ export function Pagination({
     }
   };
 
-  if (totalPages <= 1) return null;
-
   return (
     <div className="flex flex-wrap items-center justify-between gap-4 pt-6">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">

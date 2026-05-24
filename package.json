@@ -14,7 +14,8 @@
     "build-data": "node scripts/build-data.mjs",
     "all": "node scripts/fetch-stars.mjs && node scripts/build-data.mjs && vite build",
     "d1-migrate": "node scripts/d1-migrate.mjs",
-    "d1-seed": "node scripts/d1-migrate.mjs --seed"
+    "d1-seed": "node scripts/d1-migrate.mjs --seed",
+    "d1-clear": "node scripts/d1-migrate.mjs --clear"
   },
   "dependencies": {
     "@radix-ui/react-dropdown-menu": "^2.1.16",

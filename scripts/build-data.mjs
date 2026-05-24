@@ -244,16 +244,12 @@ async function main() {
             // When auto-categorize is on and this is the first language,
             // use combined function to get intro + category in one API call
             if (aiAutoCategory && i === 0) {
-              const existingCats = Array.from(categoriesSet).filter(
-                (c) => c !== "Uncategorized"
-              );
               const result = await generateIntroAndCategory(
                 lang,
                 star.fullName,
                 star.description,
                 star.topics,
-                star.language,
-                existingCats
+                star.language
               );
               cache.aiIntro[lang] = result.intro;
               if (result.category && result.category !== "Uncategorized") {
@@ -346,7 +342,6 @@ async function main() {
 
   // ---- AI smart categorization fallback for remaining Uncategorized repos ----
   if (aiAutoCategory && aiAvailable) {
-    const existingCats = Array.from(categoriesSet).filter((c) => c !== "Uncategorized");
     const uncategorized = entries.filter((e) => e.category === "Uncategorized");
 
     // Filter to only repos that need categorization:
@@ -374,14 +369,12 @@ async function main() {
             entry.fullName,
             entry.description,
             entry.topics,
-            entry.language,
-            existingCats
+            entry.language
           );
           if (suggested && suggested !== "Uncategorized") {
             entry.category = suggested;
             categoriesSet.add(suggested);
             aiCategories.add(suggested);
-            if (!existingCats.includes(suggested)) existingCats.push(suggested);
             // Track in cache for incremental updates
             summaries[entry.fullName]._aiCategory = suggested;
             summaries[entry.fullName]._aiCategoryDesc = entry.description;

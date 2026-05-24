@@ -26,7 +26,7 @@ export default function App() {
     entryLanguages,
     maxStarsValue,
     categories,
-    groupedByCategory,
+    categoryPages,
     paginatedCategories,
     page,
     totalPages,
@@ -102,16 +102,9 @@ export default function App() {
         el.scrollIntoView({ behavior: "smooth" });
         return;
       }
-      // Category not on current page — find which page it's on
-      const catIndex = categories.indexOf(cat);
-      if (catIndex === -1) return;
-      // Count entries up to this category to determine page
-      let count = 0;
-      for (let i = 0; i < catIndex; i++) {
-        count += (groupedByCategory[categories[i]] ?? []).length;
-      }
-      const targetPage = Math.floor(count / perPage) + 1;
-      if (targetPage !== page) {
+      // Category not on current page — find which page it's on via categoryPages
+      const targetPage = categoryPages.findIndex((slices) => slices.some((s) => s.category === cat)) + 1;
+      if (targetPage > 0 && targetPage !== page) {
         setPage(targetPage);
         requestAnimationFrame(() => {
           setTimeout(() => {
@@ -122,7 +115,7 @@ export default function App() {
         });
       }
     },
-    [categories, groupedByCategory, perPage, page, setPage]
+    [categoryPages, page, setPage]
   );
 
   if (loading) {

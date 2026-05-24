@@ -74,28 +74,23 @@ export async function generateIntroAndCategory(
   repoName,
   repoDescription,
   repoTopics,
-  repoLanguage,
-  existingCategories
+  repoLanguage
 ) {
   const langPrompt =
     LANG_PROMPTS[language] ||
     `Write a 50-100 word summary of the repository in ${language} language. Describe its purpose and key features.`;
-  const categoryList =
-    existingCategories.length > 0
-      ? existingCategories.join(", ")
-      : "No existing categories yet";
 
   const systemPrompt = `You are a GitHub repository analyst. Do TWO tasks:
 
 TASK 1 — Summary: ${langPrompt}
 
-TASK 2 — Category: Classify the repository into a category.
-Existing categories: ${categoryList}
+TASK 2 — Category: Based on the repo's name, description, language, and topics, assign it to ONE specific domain category.
 Rules:
-- Use an existing category ONLY if it is a genuinely specific match
-- If none fit, create a NEW concise category (1-2 words, Title Case)
-- Aim for granularity (e.g. "React UI Library" not "Software")
-- Use the repo's topics as hints
+- Create a concise category name (1-3 words, Title Case)
+- Be specific and descriptive (e.g. "React UI Library", "CLI Tool", "Machine Learning", "Game Engine", "Rust Web Framework")
+- Do NOT use vague terms like "Software", "Tools", "Developer Tools", "Utilities"
+- Use the repo's topics as strong hints for the category name
+- Each repo should get the category that BEST describes ITS specific domain
 
 OUTPUT FORMAT: Return exactly two lines.
 Line 1: The summary text (50-100 words)
@@ -128,19 +123,14 @@ export async function translateText(text, targetLanguage, sourceLanguage = "zh-C
   return chat(systemPrompt, text);
 }
 
-export async function suggestCategory(repoName, description, topics, language, existingCategories) {
-  const categoryList = existingCategories.length > 0
-    ? existingCategories.join(", ")
-    : "No existing categories yet";
-  const systemPrompt = `You are a GitHub repository classifier. Given a repo's name, description, programming language, and topics, assign it to the most specific fitting category.
-
-Existing categories: ${categoryList}
+export async function suggestCategory(repoName, description, topics, language) {
+  const systemPrompt = `You are a GitHub repository classifier. Based on the repo's name, description, language, and topics, assign it to ONE specific domain category.
 
 Rules:
-- Use an existing category ONLY if it is a genuinely specific match (e.g. both are "Machine Learning" tools). Generic overlap is NOT enough.
-- If no existing category is a specific match, create a NEW concise category (1-2 words, Title Case) that accurately describes this repo's domain.
-- Aim for granularity: "React UI Library" is better than "Software". "CLI Tool" is better than "Developer Tools".
-- Use the repo's topics as strong hints for the category name.
+- Create a concise category name (1-3 words, Title Case)
+- Be specific and descriptive (e.g. "React UI Library", "CLI Tool", "Machine Learning", "Game Engine")
+- Do NOT use vague terms like "Software", "Tools", "Developer Tools", "Utilities"
+- Use the repo's topics as strong hints for the category name
 - Return ONLY the category name, nothing else. No quotes, no explanation.`;
   const userMsg = `Repository: ${repoName}\nDescription: ${description || "None"}\nLanguage: ${language || "Unknown"}\nTopics: ${topics?.join(", ") || "None"}`;
   return chat(systemPrompt, userMsg, 50, 0.3);

@@ -137,21 +137,43 @@ export function useStars(language: Language) {
     setPage(1);
   }, [debouncedQuery, perPage, sortBy, filters]);
 
-  // Paginate by category groups — never split a category across pages
-  const categoryPages: string[][] = useMemo(() => {
-    const pages: string[][] = [];
-    let current: string[] = [];
+  // Paginate by category groups. A category larger than perPage is split across pages.
+  interface PageSlice { category: string; start: number; end: number; }
+  const categoryPages: PageSlice[][] = useMemo(() => {
+    const pages: PageSlice[][] = [];
+    let current: PageSlice[] = [];
     let count = 0;
+
     for (const cat of categories) {
-      const size = (groupedByCategory[cat] ?? []).length;
-      if (current.length > 0 && count + size > perPage) {
-        pages.push(current);
-        current = [];
-        count = 0;
+      const entries = groupedByCategory[cat] ?? [];
+      const size = entries.length;
+
+      if (count === 0 && size <= perPage) {
+        // Empty page, small category — start a new group
+        current.push({ category: cat, start: 0, end: size });
+        count = size;
+      } else if (count + size <= perPage) {
+        // Fits on current page
+        current.push({ category: cat, start: 0, end: size });
+        count += size;
+      } else if (size <= perPage) {
+        // Doesn't fit, flush current page and start new one
+        if (current.length > 0) pages.push(current);
+        current = [{ category: cat, start: 0, end: size }];
+        count = size;
+      } else {
+        // Category itself exceeds perPage — flush current page, then split this category
+        if (current.length > 0) {
+          pages.push(current);
+          current = [];
+          count = 0;
+        }
+        for (let offset = 0; offset < size; offset += perPage) {
+          pages.push([{ category: cat, start: offset, end: Math.min(offset + perPage, size) }]);
+        }
       }
-      current.push(cat);
-      count += size;
     }
+
     if (current.length > 0) pages.push(current);
     return pages.length > 0 ? pages : [[]];
   }, [categories, groupedByCategory, perPage]);
@@ -160,8 +182,11 @@ export function useStars(language: Language) {
   const currentPage = Math.min(page, totalPages);
 
   const paginatedCategories = useMemo(() => {
-    const cats = categoryPages[currentPage - 1] ?? [];
-    return cats.map((category) => ({ category, entries: groupedByCategory[category] ?? [] }));
+    const slices = categoryPages[currentPage - 1] ?? [];
+    return slices.map(({ category, start, end }) => ({
+      category,
+      entries: (groupedByCategory[category] ?? []).slice(start, end),
+    }));
   }, [categoryPages, currentPage, groupedByCategory]);
 
   // Derive unique languages from entries for the filter UI
@@ -189,6 +214,7 @@ export function useStars(language: Language) {
     filteredEntries,
     groupedByCategory,
     categories,
+    categoryPages,
     paginatedCategories,
     page: currentPage,
     totalPages,

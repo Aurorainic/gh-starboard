@@ -33,28 +33,53 @@ async function d1Batch(queries) {
 export async function ensureTables() {
   await d1Query(`
     CREATE TABLE IF NOT EXISTS summaries (
-      full_name      TEXT PRIMARY KEY,
-      ai_intro       TEXT NOT NULL DEFAULT '{}',
-      user_notes     TEXT NOT NULL DEFAULT '{}',
-      intro_source   TEXT NOT NULL DEFAULT '',
-      notes_source   TEXT NOT NULL DEFAULT '',
-      updated_at     TEXT NOT NULL
+      full_name         TEXT PRIMARY KEY,
+      ai_intro          TEXT NOT NULL DEFAULT '{}',
+      user_notes        TEXT NOT NULL DEFAULT '{}',
+      intro_source      TEXT NOT NULL DEFAULT '',
+      notes_source      TEXT NOT NULL DEFAULT '',
+      ai_category       TEXT NOT NULL DEFAULT '',
+      ai_category_desc  TEXT NOT NULL DEFAULT '',
+      ai_category_ver   INTEGER NOT NULL DEFAULT 0,
+      updated_at        TEXT NOT NULL
     )
   `);
+  // Migrate: add columns if they don't exist (for existing databases)
+  for (const col of [
+    { name: "ai_category", type: "TEXT NOT NULL DEFAULT ''" },
+    { name: "ai_category_desc", type: "TEXT NOT NULL DEFAULT ''" },
+    { name: "ai_category_ver", type: "INTEGER NOT NULL DEFAULT 0" },
+  ]) {
+    try {
+      await d1Query(`ALTER TABLE summaries ADD COLUMN ${col.name} ${col.type}`);
+    } catch {
+      // Column already exists, ignore
+    }
+  }
+}
+
+export async function clearSummaries() {
+  await d1Query("DELETE FROM summaries");
 }
 
 export async function loadSummariesFromD1() {
   const rows = await d1Query(
-    "SELECT full_name, ai_intro, user_notes, intro_source, notes_source FROM summaries"
+    "SELECT full_name, ai_intro, user_notes, intro_source, notes_source, ai_category, ai_category_desc, ai_category_ver FROM summaries"
   );
   const result = {};
   for (const row of rows) {
-    result[row.full_name] = {
+    const cache = {
       aiIntro: JSON.parse(row.ai_intro),
       userNotes: JSON.parse(row.user_notes),
       _introSource: row.intro_source,
       _notesSource: row.notes_source,
     };
+    if (row.ai_category) {
+      cache._aiCategory = row.ai_category;
+      cache._aiCategoryDesc = row.ai_category_desc;
+      cache._aiCategoryVer = row.ai_category_ver;
+    }
+    result[row.full_name] = cache;
   }
   return result;
 }
@@ -72,14 +97,17 @@ export async function saveSummariesToD1(summaries) {
   let done = 0;
   for (const [fullName, cache] of entries) {
     await d1Query(
-      `INSERT OR REPLACE INTO summaries (full_name, ai_intro, user_notes, intro_source, notes_source, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT OR REPLACE INTO summaries (full_name, ai_intro, user_notes, intro_source, notes_source, ai_category, ai_category_desc, ai_category_ver, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         fullName,
         JSON.stringify(cache.aiIntro || {}),
         JSON.stringify(cache.userNotes || {}),
         cache._introSource || "",
         cache._notesSource || "",
+        cache._aiCategory || "",
+        cache._aiCategoryDesc || "",
+        cache._aiCategoryVer || 0,
         now,
       ]
     );
