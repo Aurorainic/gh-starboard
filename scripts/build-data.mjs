@@ -41,6 +41,7 @@ const languages = (process.env.SITE_LANGUAGES || "en")
   .filter(Boolean);
 
 const aiEnabled = (process.env.AI_ENABLED || "on").toLowerCase() === "on";
+const aiAutoCategory = (process.env.AI_AUTO_CATEGORY || "").toLowerCase() === "on";
 
 let siteTitle = {};
 let siteSubtitle = {};
@@ -310,12 +311,28 @@ async function main() {
 
   // ---- AI smart categorization for Uncategorized repos ----
   const aiCategories = new Set();
-  if (aiEnabled && aiAvailable) {
+  if (aiAutoCategory && aiAvailable) {
     const existingCats = Array.from(categoriesSet).filter((c) => c !== "Uncategorized");
     const uncategorized = entries.filter((e) => e.category === "Uncategorized");
-    if (uncategorized.length > 0) {
-      console.log(`AI categorizing ${uncategorized.length} uncategorized repo(s)...`);
-      for (const entry of uncategorized) {
+
+    // Filter to only repos that need categorization:
+    // - New repos (not in cache) that are Uncategorized
+    // - Previously AI-categorized repos whose description changed
+    const toCategorize = uncategorized.filter((entry) => {
+      const cache = summaries[entry.fullName];
+      if (!cache) return true; // new repo
+      if (!cache._aiCategory) return true; // never AI-categorized
+      if (cache._aiCategoryDesc !== entry.description) return true; // description changed
+      // Restore previous AI category
+      entry.category = cache._aiCategory;
+      categoriesSet.add(cache._aiCategory);
+      aiCategories.add(cache._aiCategory);
+      return false;
+    });
+
+    if (toCategorize.length > 0) {
+      console.log(`AI categorizing ${toCategorize.length} new/changed uncategorized repo(s)...`);
+      for (const entry of toCategorize) {
         try {
           const suggested = await suggestCategory(
             entry.fullName,
@@ -329,12 +346,20 @@ async function main() {
             categoriesSet.add(suggested);
             aiCategories.add(suggested);
             if (!existingCats.includes(suggested)) existingCats.push(suggested);
+            // Track in cache for incremental updates
+            summaries[entry.fullName]._aiCategory = suggested;
+            summaries[entry.fullName]._aiCategoryDesc = entry.description;
+            summaryChanged = true;
           }
         } catch (e) {
           console.warn(`AI categorize failed for ${entry.fullName}: ${e.message}`);
         }
       }
+    } else {
+      console.log("No new uncategorized repos to categorize");
     }
+  } else if (!aiAutoCategory) {
+    console.log("AI_AUTO_CATEGORY=off, skipping auto categorization");
   }
 
   const categories = Array.from(categoriesSet);
