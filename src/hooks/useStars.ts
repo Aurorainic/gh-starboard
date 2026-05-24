@@ -4,6 +4,7 @@ import { type MergedData, type StarEntry, type Language } from "@/types";
 const DATA_URL = "./data/merged.json";
 const DEFAULT_PER_PAGE = 20;
 const DEBOUNCE_MS = 300;
+export const MAX_STARS_FILTER = Number.MAX_SAFE_INTEGER;
 
 export type SortKey = "starred" | "stars" | "updated" | "name";
 
@@ -14,6 +15,8 @@ export interface Filters {
   category: string;
 }
 
+interface PageSlice { category: string; start: number; end: number; }
+
 export function useStars(language: Language) {
   const [data, setData] = useState<MergedData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -21,7 +24,7 @@ export function useStars(language: Language) {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("starred");
-  const [filters, setFilters] = useState<Filters>({ languages: [], minStars: 0, maxStars: Infinity, category: "" });
+  const [filters, setFilters] = useState<Filters>({ languages: [], minStars: 0, maxStars: Number.MAX_SAFE_INTEGER, category: "" });
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(DEFAULT_PER_PAGE);
   const debounceTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -96,7 +99,7 @@ export function useStars(language: Language) {
       const langSet = new Set(filters.languages);
       result = result.filter((e) => langSet.has(e.language));
     }
-    if (filters.minStars > 0 || filters.maxStars < Infinity) {
+    if (filters.minStars > 0 || filters.maxStars < MAX_STARS_FILTER) {
       result = result.filter(
         (e) => e.stargazersCount >= filters.minStars && e.stargazersCount <= filters.maxStars
       );
@@ -140,7 +143,6 @@ export function useStars(language: Language) {
   }, [debouncedQuery, perPage, sortBy, filters]);
 
   // Paginate by category groups. A category larger than perPage is split across pages.
-  interface PageSlice { category: string; start: number; end: number; }
   const categoryPages: PageSlice[][] = useMemo(() => {
     const pages: PageSlice[][] = [];
     let current: PageSlice[] = [];
@@ -150,11 +152,7 @@ export function useStars(language: Language) {
       const entries = groupedByCategory[cat] ?? [];
       const size = entries.length;
 
-      if (count === 0 && size <= perPage) {
-        // Empty page, small category — start a new group
-        current.push({ category: cat, start: 0, end: size });
-        count = size;
-      } else if (count + size <= perPage) {
+      if (count + size <= perPage) {
         // Fits on current page
         current.push({ category: cat, start: 0, end: size });
         count += size;

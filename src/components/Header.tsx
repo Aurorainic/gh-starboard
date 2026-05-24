@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { type SiteConfig } from "@/types";
-import { type SortKey, type Filters } from "@/hooks/useStars";
+import { type SortKey, type Filters, MAX_STARS_FILTER } from "@/hooks/useStars";
 import { useT } from "@/i18n/useTranslation";
 
 interface HeaderProps {
@@ -60,7 +60,7 @@ export function Header({
 
   const activeFilterCount =
     (filters.languages.length > 0 ? 1 : 0) +
-    (filters.minStars > 0 || filters.maxStars < Infinity ? 1 : 0);
+    (filters.minStars > 0 || filters.maxStars < MAX_STARS_FILTER ? 1 : 0);
 
   const toggleLanguage = (lang: string) => {
     const next = filters.languages.includes(lang)
@@ -71,7 +71,7 @@ export function Header({
 
   const sliderMax = Math.max(maxStarsValue, 1);
   const currentMin = filters.minStars;
-  const currentMax = filters.maxStars === Infinity ? sliderMax : filters.maxStars;
+  const currentMax = filters.maxStars === MAX_STARS_FILTER ? sliderMax : filters.maxStars;
 
   return (
     <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -146,7 +146,7 @@ export function Header({
             <div className="px-3 py-2">
               <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
                 <span>{t("sort.stars")}</span>
-                <span>{currentMin.toLocaleString()} – {currentMax === sliderMax && filters.maxStars === Infinity ? "∞" : currentMax.toLocaleString()}</span>
+                <span>{currentMin.toLocaleString()} – {currentMax === sliderMax && filters.maxStars === MAX_STARS_FILTER ? "∞" : currentMax.toLocaleString()}</span>
               </div>
               <Slider
                 min={0}
@@ -157,7 +157,7 @@ export function Header({
                   onFiltersChange({
                     ...filters,
                     minStars: min,
-                    maxStars: max >= sliderMax ? Infinity : max,
+                    maxStars: max >= sliderMax ? MAX_STARS_FILTER : max,
                   });
                 }}
                 className="w-full"

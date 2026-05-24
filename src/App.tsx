@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { Pagination } from "@/components/Pagination";
 import { Footer } from "@/components/Footer";
 import { Badge } from "@/components/ui/badge";
-import { useStars } from "@/hooks/useStars";
+import { useStars, MAX_STARS_FILTER } from "@/hooks/useStars";
 import { useLanguage } from "@/i18n/useLanguage";
 import { useT } from "@/i18n/useTranslation";
 import { Loader2, AlertCircle, ChevronUp, X } from "lucide-react";
@@ -176,7 +176,7 @@ export default function App() {
 
         <main className="flex-1 min-w-0 px-4 py-6 lg:px-8">
           {/* Active filter badges */}
-          {(filters.languages.length > 0 || filters.minStars > 0 || filters.maxStars < Infinity) && (
+          {(filters.languages.length > 0 || filters.minStars > 0 || filters.maxStars < MAX_STARS_FILTER) && (
             <div className="flex flex-wrap items-center gap-2 mb-4">
               {filters.languages.map((lang) => (
                 <Badge key={lang} variant="secondary" className="gap-1 cursor-pointer" onClick={() => setFilters({ ...filters, languages: filters.languages.filter((l) => l !== lang) })}>
@@ -184,16 +184,16 @@ export default function App() {
                   <X className="h-3 w-3" />
                 </Badge>
               ))}
-              {(filters.minStars > 0 || filters.maxStars < Infinity) && (
-                <Badge variant="secondary" className="gap-1 cursor-pointer" onClick={() => setFilters({ ...filters, minStars: 0, maxStars: Infinity })}>
+              {(filters.minStars > 0 || filters.maxStars < MAX_STARS_FILTER) && (
+                <Badge variant="secondary" className="gap-1 cursor-pointer" onClick={() => setFilters({ ...filters, minStars: 0, maxStars: MAX_STARS_FILTER })}>
                   {filters.minStars > 0 ? `≥${filters.minStars}` : ""}
-                  {filters.minStars > 0 && filters.maxStars < Infinity ? " & " : ""}
-                  {filters.maxStars < Infinity ? `≤${filters.maxStars}` : ""}
+                  {filters.minStars > 0 && filters.maxStars < MAX_STARS_FILTER ? " & " : ""}
+                  {filters.maxStars < MAX_STARS_FILTER ? `≤${filters.maxStars}` : ""}
                   {" stars"}
                   <X className="h-3 w-3" />
                 </Badge>
               )}
-              <button onClick={() => setFilters({ languages: [], minStars: 0, maxStars: Infinity, category: "" })} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              <button onClick={() => setFilters({ languages: [], minStars: 0, maxStars: MAX_STARS_FILTER, category: "" })} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
                 Clear all
               </button>
             </div>

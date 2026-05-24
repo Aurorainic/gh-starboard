@@ -6,9 +6,12 @@ const API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
 const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
 const DATABASE_ID = process.env.D1_DATABASE_ID;
 
-const BASE_URL = `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/d1/database/${DATABASE_ID}/query`;
+const BASE_URL = ACCOUNT_ID && DATABASE_ID
+  ? `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/d1/database/${DATABASE_ID}/query`
+  : "";
 
 async function d1Query(sql, params = []) {
+  if (!BASE_URL) throw new Error("D1 not configured: missing CLOUDFLARE_ACCOUNT_ID or D1_DATABASE_ID");
   const res = await fetch(BASE_URL, {
     method: "POST",
     headers: {
@@ -52,8 +55,8 @@ export async function ensureTables() {
   ]) {
     try {
       await d1Query(`ALTER TABLE summaries ADD COLUMN ${col.name} ${col.type}`);
-    } catch {
-      // Column already exists, ignore
+    } catch (e) {
+      if (!e.message?.includes("duplicate column")) throw e;
     }
   }
 }
