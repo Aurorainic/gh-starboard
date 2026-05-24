@@ -2,6 +2,11 @@ const BASE_URL = process.env.AI_API_BASE_URL || "https://api.openai.com/v1";
 const API_KEY = process.env.AI_API_KEY;
 const MODEL = process.env.AI_MODEL || "gpt-4o-mini";
 
+function maskSecret(text) {
+  if (!text) return text;
+  return text.replace(/Bearer\s+\S+/gi, "Bearer ***").replace(/sk-[a-zA-Z0-9]{8,}/g, (m) => m.slice(0, 6) + "***");
+}
+
 async function chat(systemPrompt, userMessage, maxTokens = 800, temperature = 0.7) {
   if (!API_KEY) {
     throw new Error("AI_API_KEY not set");
@@ -26,7 +31,7 @@ async function chat(systemPrompt, userMessage, maxTokens = 800, temperature = 0.
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`API error ${res.status}: ${body}`);
+    throw new Error(`API error ${res.status}: ${maskSecret(body)}`);
   }
 
   const data = await res.json();
@@ -105,6 +110,7 @@ Nothing else. No markdown, no extra text.`;
   const lines = result.split("\n").filter((l) => l.trim());
   let intro = "";
   let category = "";
+
   for (const line of lines) {
     const catMatch = line.match(/\|\|\|CATEGORY:\s*(.+)/i);
     if (catMatch) {
@@ -113,7 +119,16 @@ Nothing else. No markdown, no extra text.`;
       intro = line.trim().replace(/^["']|["']$/g, "");
     }
   }
-  return { intro: intro || result.split("|||")[0].trim(), category };
+
+  // Validate both fields are non-empty
+  if (!intro || !category) {
+    throw new Error(
+      `Invalid response format from generateIntroAndCategory: intro="${intro}", category="${category}". ` +
+      `Expected two lines: summary and |||CATEGORY: name. Got: ${result.substring(0, 100)}`
+    );
+  }
+
+  return { intro, category };
 }
 
 export async function translateText(text, targetLanguage, sourceLanguage = "zh-CN") {
@@ -154,8 +169,16 @@ Rules:
   } catch {
     // Try extracting JSON from response
     const match = result.match(/\{[\s\S]*\}/);
-    if (match) return JSON.parse(match[0]);
-    throw new Error("Failed to parse UI translation response as JSON");
+    if (match) {
+      try {
+        return JSON.parse(match[0]);
+      } catch {
+        console.warn(`UI translation for ${targetLanguage} failed to parse, using English fallback`);
+        return texts;
+      }
+    }
+    console.warn(`UI translation for ${targetLanguage} failed to parse, using English fallback`);
+    return texts;
   }
 }
 

@@ -25,11 +25,31 @@ function detectBrowserLanguage(): string {
   return DEFAULT_LANGUAGE;
 }
 
+const LANG_VARIANTS: Record<string, string[]> = {
+  "zh-Hans": ["zh-CN"],
+  "zh-Hant": ["zh-TW", "zh-HK"],
+  "pt-BR": ["pt"],
+  "es-ES": ["es"],
+  "en-US": ["en"],
+  "en-GB": ["en"],
+};
+
 function matchBrowserLanguage(available: string[]): string | null {
   const browser = detectBrowserLanguage();
   if (available.includes(browser)) return browser;
+
+  // Check variant mapping (e.g. zh-Hans → zh-CN)
+  const variants = LANG_VARIANTS[browser];
+  if (variants) {
+    for (const variant of variants) {
+      if (available.includes(variant)) return variant;
+    }
+  }
+
+  // Check prefix fallback (e.g. fr-CA → fr)
   const prefix = browser.split("-")[0];
   if (available.includes(prefix)) return prefix;
+
   return null;
 }
 

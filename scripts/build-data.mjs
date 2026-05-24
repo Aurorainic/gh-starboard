@@ -202,6 +202,104 @@ function parseStarsMd() {
   return categoryMap;
 }
 
+// ---- Categorization helpers ----
+
+async function processIntroAndCategory(
+  star,
+  cache,
+  languages,
+  aiAutoCategory,
+  generateIntroAndCategory,
+  generateIntro,
+  AI_CATEGORY_PROMPT_VER
+) {
+  const aiErrors = { intro: 0, category: 0 };
+  let categoryApplied = null;
+
+  for (let i = 0; i < languages.length; i++) {
+    const lang = languages[i];
+    if (!cache.aiIntro[lang]) {
+      try {
+        if (aiAutoCategory && i === 0) {
+          const result = await generateIntroAndCategory(
+            lang,
+            star.fullName,
+            star.description,
+            star.topics,
+            star.language
+          );
+          cache.aiIntro[lang] = result.intro;
+          if (result.category && result.category !== "Uncategorized") {
+            cache._aiCategory = result.category;
+            cache._aiCategoryDesc = star.description;
+            cache._aiCategoryVer = AI_CATEGORY_PROMPT_VER;
+            categoryApplied = result.category;
+          }
+        } else {
+          cache.aiIntro[lang] = await generateIntro(
+            lang,
+            star.fullName,
+            star.description
+          );
+        }
+      } catch (e) {
+        aiErrors.intro++;
+        console.warn(
+          `AI intro [${lang}] failed for ${star.fullName}: ${e.message}`
+        );
+      }
+    }
+  }
+
+  return { categoryApplied, aiErrors };
+}
+
+async function categorizeUncategorized(
+  entries,
+  summaries,
+  suggestCategory,
+  AI_CATEGORY_PROMPT_VER
+) {
+  const aiErrors = { category: 0 };
+  const categorized = [];
+
+  const toCategorize = entries.filter((entry) => {
+    const cache = summaries[entry.fullName];
+    if (!cache) return true;
+    if (!cache._aiCategory) return true;
+    if (cache._aiCategoryVer !== AI_CATEGORY_PROMPT_VER) return true;
+    if (cache._aiCategoryDesc !== entry.description) return true;
+    entry.category = cache._aiCategory;
+    return false;
+  });
+
+  for (const entry of toCategorize) {
+    try {
+      const suggested = await suggestCategory(
+        entry.fullName,
+        entry.description,
+        entry.topics,
+        entry.language
+      );
+      if (suggested && suggested !== "Uncategorized") {
+        entry.category = suggested;
+        categorized.push(entry.fullName);
+        if (!summaries[entry.fullName]) {
+          summaries[entry.fullName] = { aiIntro: {}, userNotes: {} };
+        }
+        summaries[entry.fullName]._aiCategory = suggested;
+        summaries[entry.fullName]._aiCategoryDesc = entry.description;
+        summaries[entry.fullName]._aiCategoryVer = AI_CATEGORY_PROMPT_VER;
+      }
+    } catch (e) {
+      aiErrors.category++;
+      console.warn(`AI categorize failed for ${entry.fullName}: ${e.message}`);
+    }
+  }
+
+  return { categorized, aiErrors };
+}
+
 // ---- Main pipeline ----
 
 async function main() {
@@ -215,7 +313,11 @@ async function main() {
   const AI_CATEGORY_PROMPT_VER = 2; // bump to force re-categorization
 
   let summaryChanged = cacheMigrated;
-  let aiErrors = { intro: 0, translate: 0, category: 0 };
+  let aiErrors = {
+    intro: { count: 0, repos: [] },
+    translate: { count: 0, repos: [] },
+    category: { count: 0, repos: [] },
+  };
 
   for (const star of stars) {
     const noteData = notesMap[star.fullName] || {};
@@ -273,7 +375,8 @@ async function main() {
             }
             summaryChanged = true;
           } catch (e) {
-            aiErrors.intro++;
+            aiErrors.intro.count++;
+            aiErrors.intro.repos.push({ repo: star.fullName, lang, error: e.message });
             console.warn(
               `AI intro [${lang}] failed for ${star.fullName}: ${e.message}`
             );
@@ -298,7 +401,8 @@ async function main() {
             cache.userNotes[lang] = await translateText(userNotesRaw, lang, notesSourceLang);
             summaryChanged = true;
           } catch (e) {
-            aiErrors.translate++;
+            aiErrors.translate.count++;
+            aiErrors.translate.repos.push({ repo: star.fullName, lang, error: e.message });
             console.warn(
               `Notes translate [${lang}] failed for ${star.fullName}: ${e.message}`
             );
@@ -386,7 +490,8 @@ async function main() {
             summaryChanged = true;
           }
         } catch (e) {
-          aiErrors.category++;
+          aiErrors.category.count++;
+          aiErrors.category.repos.push({ repo: entry.fullName, error: e.message });
           console.warn(`AI categorize failed for ${entry.fullName}: ${e.message}`);
         }
       }
@@ -482,9 +587,20 @@ async function main() {
   mkdirSync(dirname(OUTPUT), { recursive: true });
   writeFileSync(OUTPUT, JSON.stringify(merged, null, 2), "utf-8");
 
-  const totalErrors = aiErrors.intro + aiErrors.translate + aiErrors.category;
+  const totalErrors = aiErrors.intro.count + aiErrors.translate.count + aiErrors.category.count;
   if (totalErrors > 0) {
-    console.warn(`AI errors: ${aiErrors.intro} intro, ${aiErrors.translate} translate, ${aiErrors.category} category`);
+    console.warn(`\nAI errors summary: ${totalErrors} total failure(s)`);
+    for (const [type, data] of Object.entries(aiErrors)) {
+      if (data.count > 0) {
+        console.warn(`  ${type}: ${data.count} failure(s)`);
+        data.repos.slice(0, 5).forEach((r) => {
+          console.warn(`    - ${r.repo}${r.lang ? ` [${r.lang}]` : ""}: ${r.error}`);
+        });
+        if (data.repos.length > 5) {
+          console.warn(`    ... and ${data.repos.length - 5} more`);
+        }
+      }
+    }
   }
 
   console.log(
