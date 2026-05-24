@@ -1,18 +1,6 @@
 import { useT } from "@/i18n/useTranslation";
 import { useLanguage } from "@/i18n/useLanguage";
-
-function formatTimeAgo(isoString: string, lang: string): string {
-  if (!isoString) return "";
-  const diff = Date.now() - new Date(isoString).getTime();
-  const hours = Math.floor(diff / 3_600_000);
-  if (hours < 1) {
-    return lang === "zh-CN" ? "不到 1 小时" : "less than 1 hour";
-  }
-  if (lang === "zh-CN") {
-    return `${hours} 小时`;
-  }
-  return `${hours} hour${hours === 1 ? "" : "s"}`;
-}
+import { timeAgo } from "@/lib/timeAgo";
 
 interface FooterProps {
   lastUpdated: string;
@@ -21,7 +9,7 @@ interface FooterProps {
 export function Footer({ lastUpdated }: FooterProps) {
   const { t } = useT();
   const { language } = useLanguage();
-  const timeAgo = formatTimeAgo(lastUpdated, language);
+  const refreshedAgo = timeAgo(lastUpdated, language, t("time.justNow"));
 
   const projectLink = (
     <a
@@ -52,7 +40,7 @@ export function Footer({ lastUpdated }: FooterProps) {
         )}
       </p>
       {lastUpdated && (
-        <p>{t("footer.refreshed", { time: timeAgo })}</p>
+        <p>{t("footer.refreshed", { time: refreshedAgo })}</p>
       )}
     </footer>
   );

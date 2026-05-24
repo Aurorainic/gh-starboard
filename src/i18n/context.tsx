@@ -28,7 +28,6 @@ function matchBrowserLanguage(available: string[]): string | null {
 export interface LanguageContextValue {
   language: string;
   setLanguage: (lang: string) => void;
-  toggleLanguage: () => void;
   availableLanguages: string[];
   setAvailableLanguages: (langs: string[]) => void;
 }
@@ -36,7 +35,6 @@ export interface LanguageContextValue {
 export const LanguageContext = createContext<LanguageContextValue>({
   language: DEFAULT_LANGUAGE,
   setLanguage: () => {},
-  toggleLanguage: () => {},
   availableLanguages: [DEFAULT_LANGUAGE],
   setAvailableLanguages: () => {},
 });
@@ -65,15 +63,6 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setLanguageState(lang);
   }, []);
 
-  const toggleLanguage = useCallback(() => {
-    userChoseRef.current = true;
-    setLanguageState((prev) => {
-      const idx = availableLanguages.indexOf(prev);
-      const nextIdx = (idx + 1) % availableLanguages.length;
-      return availableLanguages[nextIdx];
-    });
-  }, [availableLanguages]);
-
   const handleSetAvailableLanguages = useCallback(
     (langs: string[]) => {
       setAvailableLanguages(langs);
@@ -96,7 +85,6 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       value={{
         language,
         setLanguage,
-        toggleLanguage,
         availableLanguages,
         setAvailableLanguages: handleSetAvailableLanguages,
       }}

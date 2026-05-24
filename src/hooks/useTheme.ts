@@ -30,15 +30,7 @@ export function useTheme() {
     }
   }, [theme]);
 
-  const cycle = () => {
-    setThemeState((prev) => {
-      if (prev === "auto") return "dark";
-      if (prev === "dark") return "light";
-      return "auto";
-    });
-  };
-
   const setTheme = (t: Theme) => setThemeState(t);
 
-  return { theme, cycle, setTheme };
+  return { theme, setTheme };
 }
