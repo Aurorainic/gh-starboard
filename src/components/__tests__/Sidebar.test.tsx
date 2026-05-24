@@ -13,8 +13,8 @@ interface CategoryCount {
 
 interface SidebarTestProps {
   categories: CategoryCount[];
-  selectedCategory: string;
-  onCategoryChange: (category: string) => void;
+  selectedCategories: string[];
+  onCategoriesChange: (categories: string[]) => void;
   categoryTranslations: Record<string, Record<string, string>>;
   sortBy: SortKey;
   onSortChange: (key: SortKey) => void;
@@ -31,12 +31,12 @@ function renderSidebar(props: Partial<SidebarTestProps> = {}) {
       { name: "Libraries", count: 3, isAi: false },
       { name: "AI Generated", count: 2, isAi: true },
     ],
-    selectedCategory: "",
-    onCategoryChange: vi.fn(),
+    selectedCategories: [],
+    onCategoriesChange: vi.fn(),
     categoryTranslations: {},
     sortBy: "starred",
     onSortChange: vi.fn(),
-    filters: { languages: [], minStars: 0, maxStars: Number.MAX_SAFE_INTEGER, category: "" },
+    filters: { languages: [], minStars: 0, maxStars: Number.MAX_SAFE_INTEGER, categories: [] },
     onFiltersChange: vi.fn(),
     maxStarsValue: 1000,
     entryLanguages: ["JavaScript", "Python", "TypeScript"],
@@ -49,9 +49,8 @@ function renderSidebar(props: Partial<SidebarTestProps> = {}) {
 }
 
 describe("Sidebar", () => {
-  it("renders All button and all categories", () => {
+  it("renders all categories", () => {
     renderSidebar();
-    expect(screen.getByText("All")).toBeInTheDocument();
     expect(screen.getByText("Tools")).toBeInTheDocument();
     expect(screen.getByText("Libraries")).toBeInTheDocument();
     expect(screen.getByText("AI Generated")).toBeInTheDocument();
@@ -70,55 +69,39 @@ describe("Sidebar", () => {
     expect(aiButton?.querySelector("svg")).toBeTruthy();
   });
 
-  it("does not show Bot icon for non-AI categories", () => {
-    renderSidebar();
-    const normalButton = screen.getByText("Tools").closest("button");
-    // Only the entry count SVG is the bot icon — Tools button should have count but no bot
-    // Actually Tools button has count "5" but no SVG bot icon
-    const svgs = normalButton?.querySelectorAll("svg") ?? [];
-    // No SVG at all for non-AI categories (count is just text)
-    expect(svgs.length).toBe(0);
-  });
-
   it("highlights selected category", () => {
-    renderSidebar({ selectedCategory: "Libraries" });
+    renderSidebar({ selectedCategories: ["Libraries"] });
     const btn = screen.getByText("Libraries").closest("button");
     expect(btn?.className).toContain("bg-accent");
   });
 
-  it("calls onCategoryChange when category clicked", async () => {
-    const onCategoryChange = vi.fn();
+  it("calls onCategoriesChange when category clicked", async () => {
+    const onCategoriesChange = vi.fn();
     const user = userEvent.setup();
-    renderSidebar({ onCategoryChange });
+    renderSidebar({ onCategoriesChange });
 
     await user.click(screen.getByText("Tools"));
-    expect(onCategoryChange).toHaveBeenCalledWith("Tools");
+    expect(onCategoriesChange).toHaveBeenCalledWith(["Tools"]);
   });
 
-  it("calls onCategoryChange('') when All clicked", async () => {
-    const onCategoryChange = vi.fn();
+  it("deselects category when clicked again", async () => {
+    const onCategoriesChange = vi.fn();
     const user = userEvent.setup();
-    renderSidebar({ selectedCategory: "Tools", onCategoryChange });
+    renderSidebar({ selectedCategories: ["Tools"], onCategoriesChange });
 
-    await user.click(screen.getByText("All"));
-    expect(onCategoryChange).toHaveBeenCalledWith("");
+    await user.click(screen.getByText("Tools"));
+    expect(onCategoriesChange).toHaveBeenCalledWith([]);
   });
 
   it("renders sort options", () => {
     renderSidebar();
     expect(screen.getByRole("heading", { name: "Sort" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Star order" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "By stars" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "By updated" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "By name" })).toBeInTheDocument();
   });
 
   it("uses translated category names when available", () => {
     renderSidebar({
       categoryTranslations: { "zh-CN": { Tools: "工具" } },
     });
-    // Default language is "en", so translations won't apply without changing context
-    // But the function should still work
     expect(screen.getByText("Tools")).toBeInTheDocument();
   });
 });

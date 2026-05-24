@@ -16,7 +16,8 @@
     "d1-migrate": "node scripts/d1-migrate.mjs",
     "d1-seed": "node scripts/d1-migrate.mjs --seed",
     "d1-clear": "node scripts/d1-migrate.mjs --clear",
-    "d1-clear-categories": "node scripts/d1-migrate.mjs --clear-categories"
+    "d1-clear-categories": "node scripts/d1-migrate.mjs --clear-categories",
+    "d1-sync": "node scripts/d1-migrate.mjs --sync"
   },
   "dependencies": {
     "@radix-ui/react-dropdown-menu": "^2.1.16",

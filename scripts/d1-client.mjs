@@ -65,6 +65,11 @@ export async function clearSummaries() {
   await d1Query("DELETE FROM summaries");
 }
 
+export async function getD1LatestUpdatedAt() {
+  const rows = await d1Query("SELECT MAX(updated_at) as latest FROM summaries");
+  return rows[0]?.latest ?? null;
+}
+
 export async function clearCategoryColumns() {
   await d1Query("UPDATE summaries SET ai_category = '', ai_category_desc = '', ai_category_ver = 0");
 }

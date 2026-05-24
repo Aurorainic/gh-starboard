@@ -79,11 +79,11 @@ export default function App() {
   // Scroll to top when category filter changes
   useEffect(() => {
     window.scrollTo({ top: 0 });
-  }, [filters.category]);
+  }, [filters.categories]);
 
-  const handleCategoryChange = useCallback(
-    (cat: string) => {
-      setFilters({ ...filters, category: cat });
+  const handleCategoriesChange = useCallback(
+    (cats: string[]) => {
+      setFilters({ ...filters, categories: cats });
     },
     [filters, setFilters]
   );
@@ -138,8 +138,8 @@ export default function App() {
             count: (groupedByCategory[cat] ?? []).length,
             isAi: aiCategories.includes(cat),
           }))}
-          selectedCategory={filters.category}
-          onCategoryChange={handleCategoryChange}
+          selectedCategories={filters.categories}
+          onCategoriesChange={handleCategoriesChange}
           categoryTranslations={categoryTranslations}
           sortBy={sortBy}
           onSortChange={setSortBy}
@@ -151,14 +151,14 @@ export default function App() {
 
         <main className="flex-1 min-w-0 px-4 py-6 lg:px-8">
           {/* Active filter badges */}
-          {(filters.category || filters.languages.length > 0 || filters.minStars > 0 || filters.maxStars < MAX_STARS_FILTER) && (
+          {(filters.categories.length > 0 || filters.languages.length > 0 || filters.minStars > 0 || filters.maxStars < MAX_STARS_FILTER) && (
             <div className="flex flex-wrap items-center gap-2 mb-4">
-              {filters.category && (
-                <Badge variant="secondary" className="gap-1 cursor-pointer" onClick={() => setFilters({ ...filters, category: "" })}>
-                  {catName(filters.category)}
+              {filters.categories.map((cat) => (
+                <Badge key={cat} variant="secondary" className="gap-1 cursor-pointer" onClick={() => setFilters({ ...filters, categories: filters.categories.filter((c) => c !== cat) })}>
+                  {catName(cat)}
                   <X className="h-3 w-3" />
                 </Badge>
-              )}
+              ))}
               {filters.languages.map((lang) => (
                 <Badge key={lang} variant="secondary" className="gap-1 cursor-pointer" onClick={() => setFilters({ ...filters, languages: filters.languages.filter((l) => l !== lang) })}>
                   {lang}
@@ -174,7 +174,7 @@ export default function App() {
                   <X className="h-3 w-3" />
                 </Badge>
               )}
-              <button onClick={() => setFilters({ languages: [], minStars: 0, maxStars: MAX_STARS_FILTER, category: "" })} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              <button onClick={() => setFilters({ languages: [], minStars: 0, maxStars: MAX_STARS_FILTER, categories: [] })} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
                 Clear all
               </button>
             </div>
@@ -183,18 +183,23 @@ export default function App() {
           {/* Mobile category bar */}
           <div className="flex lg:hidden flex-wrap gap-1.5 my-4">
             <Badge
-              variant={filters.category === "" ? "default" : "secondary"}
+              variant={filters.categories.length === 0 ? "default" : "secondary"}
               className="cursor-pointer"
-              onClick={() => handleCategoryChange("")}
+              onClick={() => handleCategoriesChange([])}
             >
               {t("sidebar.all")}
             </Badge>
             {categories.map((cat) => (
               <Badge
                 key={cat}
-                variant={filters.category === cat ? "default" : "secondary"}
+                variant={filters.categories.includes(cat) ? "default" : "secondary"}
                 className="cursor-pointer"
-                onClick={() => handleCategoryChange(cat)}
+                onClick={() => {
+                  const next = filters.categories.includes(cat)
+                    ? filters.categories.filter((c) => c !== cat)
+                    : [...filters.categories, cat];
+                  handleCategoriesChange(next);
+                }}
               >
                 {catName(cat)}
               </Badge>

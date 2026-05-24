@@ -30,7 +30,7 @@
     - [Content structure](#content-structure)
   - [Deploy](#deploy)
     - [GitHub Pages](#github-pages)
-    - [Other platforms (Netlify example)](#other-platforms-netlify-example)
+    - [Other platforms Configuration](#other-platforms-configuration)
   - [Configuration reference](#configuration-reference)
   - [AI provider](#ai-provider)
     - [D1 external cache (recommended)](#d1-external-cache-recommended)
@@ -153,10 +153,10 @@ A [GitHub Actions workflow](.github/workflows/deploy.yml) is included for automa
 
 A [PR check workflow](.github/workflows/check.yml) runs typecheck + build on pull requests to `main`.
 
-### Other platforms (Netlify example)
+### Other platforms Configuration
 
 <details>
-<summary>Configuration</summary>
+<summary>Netlify</summary>
 
 | Setting | Value |
 |---------|-------|
@@ -164,6 +164,19 @@ A [PR check workflow](.github/workflows/check.yml) runs typecheck + build on pul
 | Publish directory | `dist` |
 
 > **Important**: Use `pnpm run all` (not `pnpm run build`) as the build command — it runs the full data pipeline (fetch stars + AI generate) before building the frontend. Also set `GH_TOKEN` and `GH_USERNAME` in Site settings > Environment variables.
+
+</details>
+
+<details>
+<summary>Cloudflare Pages</summary>
+
+| Setting | Value |
+|---------|-------|
+| Build command | `pnpm run all` |
+| Build output directory | `dist` |
+| Environment variable | `NODE_VERSION=24` |
+
+> **Important**: Use `pnpm run all` (not `pnpm run build`) as the build command. Set `GH_TOKEN`, `GH_USERNAME`, and other required variables in Settings > Environment variables.
 
 </details>
 

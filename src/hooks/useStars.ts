@@ -12,7 +12,7 @@ export interface Filters {
   languages: string[];
   minStars: number;
   maxStars: number;
-  category: string;
+  categories: string[];
 }
 
 interface PageSlice { category: string; start: number; end: number; }
@@ -24,7 +24,7 @@ export function useStars(language: Language) {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("starred");
-  const [filters, setFilters] = useState<Filters>({ languages: [], minStars: 0, maxStars: Number.MAX_SAFE_INTEGER, category: "" });
+  const [filters, setFilters] = useState<Filters>({ languages: [], minStars: 0, maxStars: Number.MAX_SAFE_INTEGER, categories: [] });
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(DEFAULT_PER_PAGE);
   const debounceTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -93,8 +93,9 @@ export function useStars(language: Language) {
     }
 
     // Advanced filters
-    if (filters.category) {
-      result = result.filter((e) => e.category === filters.category);
+    if (filters.categories.length > 0) {
+      const catSet = new Set(filters.categories);
+      result = result.filter((e) => catSet.has(e.category));
     }
     if (filters.languages.length > 0) {
       const langSet = new Set(filters.languages);

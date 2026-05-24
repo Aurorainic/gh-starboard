@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
@@ -16,8 +15,8 @@ interface CategoryCount {
 
 interface SidebarProps {
   categories: CategoryCount[];
-  selectedCategory: string;
-  onCategoryChange: (category: string) => void;
+  selectedCategories: string[];
+  onCategoriesChange: (categories: string[]) => void;
   categoryTranslations: Record<string, Record<string, string>>;
   sortBy: SortKey;
   onSortChange: (key: SortKey) => void;
@@ -29,8 +28,8 @@ interface SidebarProps {
 
 export function Sidebar({
   categories,
-  selectedCategory,
-  onCategoryChange,
+  selectedCategories,
+  onCategoriesChange,
   categoryTranslations,
   sortBy,
   onSortChange,
@@ -64,6 +63,13 @@ export function Sidebar({
     onFiltersChange({ ...filters, languages: next });
   };
 
+  const toggleCategory = (name: string) => {
+    const next = selectedCategories.includes(name)
+      ? selectedCategories.filter((c) => c !== name)
+      : [...selectedCategories, name];
+    onCategoriesChange(next);
+  };
+
   return (
     <aside className="hidden lg:block w-60 shrink-0">
       <nav className="sticky top-14 pt-4">
@@ -72,41 +78,49 @@ export function Sidebar({
 
             {/* Categories */}
             <div>
-              <h2 className="mb-2 px-4 text-sm font-semibold tracking-tight">
-                {t("sidebar.toc")}
+              <h2 className="mb-2 px-2 text-sm font-semibold tracking-tight flex items-center justify-between">
+                <span>{t("sidebar.toc")}</span>
+                {selectedCategories.length > 0 && (
+                  <button
+                    onClick={() => onCategoriesChange([])}
+                    className="text-xs font-normal text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {t("sidebar.clearAll") || "Clear"}
+                  </button>
+                )}
               </h2>
               <div className="space-y-0.5">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    "w-full justify-between text-sm font-normal",
-                    selectedCategory === "" &&
-                      "bg-accent text-accent-foreground font-medium"
-                  )}
-                  onClick={() => onCategoryChange("")}
-                >
-                  <span>{t("sidebar.all")}</span>
-                </Button>
-                {categories.map((cat) => (
-                  <Button
-                    key={cat.name}
-                    variant="ghost"
-                    size="sm"
-                    className={cn(
-                      "w-full justify-between text-sm font-normal gap-1.5",
-                      selectedCategory === cat.name &&
-                        "bg-accent text-accent-foreground font-medium"
-                    )}
-                    onClick={() => onCategoryChange(cat.name)}
-                  >
-                    <span className="truncate">{catName(cat.name)}</span>
-                    <span className="flex items-center gap-1 shrink-0">
-                      {cat.isAi && <Bot className="h-3 w-3 text-muted-foreground" />}
-                      <span className="text-xs text-muted-foreground">{cat.count}</span>
-                    </span>
-                  </Button>
-                ))}
+                {categories.map((cat) => {
+                  const checked = selectedCategories.includes(cat.name);
+                  return (
+                    <button
+                      key={cat.name}
+                      onClick={() => toggleCategory(cat.name)}
+                      className={cn(
+                        "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm hover:bg-accent transition-colors text-left",
+                        checked && "bg-accent"
+                      )}
+                    >
+                      <span className={cn(
+                        "h-4 w-4 rounded border shrink-0 inline-flex items-center justify-center",
+                        checked
+                          ? "bg-primary border-primary text-primary-foreground"
+                          : "border-muted-foreground/40"
+                      )}>
+                        {checked && (
+                          <svg viewBox="0 0 10 8" className="h-2.5 w-2.5 fill-current">
+                            <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      </span>
+                      <span className="truncate flex-1">{catName(cat.name)}</span>
+                      <span className="flex items-center gap-1 shrink-0">
+                        {cat.isAi && <Bot className="h-3 w-3 text-muted-foreground" />}
+                        <span className="text-xs text-muted-foreground">{cat.count}</span>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -114,24 +128,32 @@ export function Sidebar({
 
             {/* Sort */}
             <div>
-              <h2 className="mb-2 px-4 text-sm font-semibold tracking-tight flex items-center gap-1.5">
+              <h2 className="mb-2 px-2 text-sm font-semibold tracking-tight flex items-center gap-1.5">
                 <ArrowUpDown className="h-3.5 w-3.5" />
                 {t("sidebar.sort")}
               </h2>
               <div className="space-y-0.5">
                 {sortOptions.map(({ key, label }) => (
-                  <Button
+                  <button
                     key={key}
-                    variant="ghost"
-                    size="sm"
-                    className={cn(
-                      "w-full justify-start text-sm font-normal",
-                      sortBy === key && "bg-accent text-accent-foreground font-medium"
-                    )}
                     onClick={() => onSortChange(key)}
+                    className={cn(
+                      "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm hover:bg-accent transition-colors text-left",
+                      sortBy === key && "bg-accent font-medium"
+                    )}
                   >
+                    <span className={cn(
+                      "h-4 w-4 rounded-full border shrink-0 inline-flex items-center justify-center",
+                      sortBy === key
+                        ? "border-primary"
+                        : "border-muted-foreground/40"
+                    )}>
+                      {sortBy === key && (
+                        <span className="h-2 w-2 rounded-full bg-primary block" />
+                      )}
+                    </span>
                     {label}
-                  </Button>
+                  </button>
                 ))}
               </div>
             </div>
@@ -139,7 +161,7 @@ export function Sidebar({
             <Separator />
 
             {/* Star range */}
-            <div className="px-4">
+            <div className="px-2">
               <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
                 <span>{t("sidebar.stars")}</span>
                 <span>
@@ -171,13 +193,13 @@ export function Sidebar({
             <div>
               <button
                 onClick={() => setLangExpanded(!langExpanded)}
-                className="flex w-full items-center justify-between px-4 mb-2 text-sm font-semibold tracking-tight hover:text-foreground transition-colors text-muted-foreground"
+                className="flex w-full items-center justify-between px-2 mb-2 text-sm font-semibold tracking-tight hover:text-foreground transition-colors text-muted-foreground"
               >
                 <span>{t("sidebar.languages")}{filters.languages.length > 0 ? ` (${filters.languages.length})` : ""}</span>
                 <ChevronDown className={`h-3.5 w-3.5 transition-transform ${langExpanded ? "rotate-180" : ""}`} />
               </button>
               {langExpanded && (
-                <div className="grid grid-cols-2 gap-0.5 px-4">
+                <div className="grid grid-cols-2 gap-0.5 px-2">
                   {entryLanguages.map((lang) => (
                     <button
                       key={lang}
@@ -186,7 +208,7 @@ export function Sidebar({
                     >
                       <span className={cn(
                         "h-3 w-3 rounded-sm border shrink-0 inline-flex items-center justify-center text-[10px]",
-                        filters.languages.includes(lang) ? "bg-primary text-primary-foreground" : ""
+                        filters.languages.includes(lang) ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/40"
                       )}>
                         {filters.languages.includes(lang) ? "✓" : ""}
                       </span>

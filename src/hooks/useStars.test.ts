@@ -161,7 +161,7 @@ describe("useStars", () => {
     const { result } = renderHook(() => useStars("en"));
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    act(() => result.current.setFilters({ ...result.current.filters, category: "Libraries" }));
+    act(() => result.current.setFilters({ ...result.current.filters, categories: ["Libraries"] }));
 
     expect(result.current.filteredEntries).toHaveLength(1);
     expect(result.current.filteredEntries[0].category).toBe("Libraries");

@@ -151,10 +151,10 @@ pnpm run all      # 拉取 stars → AI 生成 → vite build → dist/
 
 另有 [PR 检查工作流](.github/workflows/check.yml) 在 PR 到 `main` 时运行 typecheck + build。
 
-### 其他平台（以 Netlify 为例）
+### 其他平台
 
 <details>
-<summary>配置</summary>
+<summary>Netlify</summary>
 
 | 设置项 | 值 |
 |--------|-----|
@@ -162,6 +162,19 @@ pnpm run all      # 拉取 stars → AI 生成 → vite build → dist/
 | Publish directory | `dist` |
 
 > **注意**：Build command 必须填 `pnpm run all`（而非 `pnpm run build`），它会先执行完整的数据管道（拉取 stars + AI 生成）再构建前端。同时在 Site settings > Environment variables 中设置 `GH_TOKEN` 和 `GH_USERNAME`。
+
+</details>
+
+<details>
+<summary>Cloudflare Pages</summary>
+
+| 设置项 | 值 |
+|--------|-----|
+| Build command | `pnpm run all` |
+| Build output directory | `dist` |
+| 环境变量 | `NODE_VERSION=24` |
+
+> **注意**：Build command 必须填 `pnpm run all`（而非 `pnpm run build`）。在 Settings > Environment variables 中设置 `GH_TOKEN`、`GH_USERNAME` 及其他所需变量。
 
 </details>
 
