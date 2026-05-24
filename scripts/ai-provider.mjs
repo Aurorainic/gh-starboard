@@ -188,6 +188,48 @@ Rules:
   return chat(systemPrompt, userMsg, 50, 0.3);
 }
 
+export async function batchSuggestCategories(repos, existingCategories) {
+  const categoryList = existingCategories.length > 0
+    ? `EXISTING CATEGORIES (prefer reusing these):\n${existingCategories.join(", ")}`
+    : "No existing categories yet.";
+
+  const repoList = repos.map((r, i) =>
+    `${i + 1}. ${r.fullName} | ${r.language || "?"} | ${r.description || "No description"} | topics: ${r.topics?.join(", ") || "none"}`
+  ).join("\n");
+
+  const systemPrompt = `You are a GitHub repository classifier. Assign each repository to a category.
+
+Rules:
+- STRONGLY prefer reusing an existing category when it fits
+- Only create a new category if NONE of the existing ones are appropriate
+- Category names: 1-3 words, Title Case, specific and descriptive
+- Avoid vague terms like "Software", "Tools", "Developer Tools", "Utilities"
+- Aim for 15-30 total categories across all repos (group similar repos together)
+- Return ONLY valid JSON, no markdown or explanation
+
+OUTPUT FORMAT (JSON array):
+[{"repo": "owner/repo", "category": "Category Name"}, ...]`;
+
+  const userMsg = `${categoryList}\n\nREPOSITORIES:\n${repoList}`;
+
+  const result = await chat(systemPrompt, userMsg, 2000, 0.3);
+
+  try {
+    const parsed = JSON.parse(result);
+    if (Array.isArray(parsed)) return parsed;
+  } catch {
+    const match = result.match(/\[[\s\S]*\]/);
+    if (match) {
+      try {
+        const parsed = JSON.parse(match[0]);
+        if (Array.isArray(parsed)) return parsed;
+      } catch { /* fall through */ }
+    }
+  }
+  console.warn("batchSuggestCategories: failed to parse response, skipping batch");
+  return [];
+}
+
 export async function translateUITexts(texts, targetLanguage) {
   const targetName = LANG_NAMES[targetLanguage] || targetLanguage;
   const entries = Object.entries(texts).map(([key, value]) => `"${key}": "${value}"`);

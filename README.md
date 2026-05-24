@@ -111,6 +111,8 @@ Edit `.env.local`:
 
 ```bash
 # Comma-separated language codes. First is default. "en" is always the base language.
+# If you don't need multi-language, only keep the one you need — each extra language
+# triggers additional AI API calls, increasing build time and cost.
 SITE_LANGUAGES=en
 
 # Custom titles (JSON, keyed by language code). Leave empty for defaults.
@@ -175,7 +177,7 @@ A [PR check workflow](.github/workflows/check.yml) runs typecheck + build on pul
 | `AI_MODEL` | No | Model name (default: `gpt-4o-mini`) |
 | `AI_ENABLED` | No | `on` / `off` (default: `on`) |
 | `AI_AUTO_CATEGORY` | No | `on` / off (default: off). Auto-categorize uncategorized repos via AI |
-| `SITE_LANGUAGES` | No | Comma-separated language codes (default: `en`) |
+| `SITE_LANGUAGES` | No | Comma-separated language codes (default: `en`). Only keep languages you need — each extra language adds AI calls |
 | `SITE_TITLE` | No | Custom site title, JSON keyed by language code |
 | `SITE_SUBTITLE` | No | Custom site subtitle, JSON keyed by language code |
 | `PROJECT_URL` | No | Custom footer project URL |

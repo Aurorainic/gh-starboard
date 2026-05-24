@@ -54,14 +54,14 @@ try {
 
 // ---- AI provider ----
 let aiAvailable = false;
-let generateIntro, generateIntroAndCategory, translateText, suggestCategory, translateUITexts;
+let generateIntro, translateText, suggestCategory, batchSuggestCategories, translateUITexts;
 
 try {
   const ai = await import("./ai-provider.mjs");
   generateIntro = ai.generateIntro;
-  generateIntroAndCategory = ai.generateIntroAndCategory;
   translateText = ai.translateText;
   suggestCategory = ai.suggestCategory;
+  batchSuggestCategories = ai.batchSuggestCategories;
   translateUITexts = ai.translateUITexts;
 
   if (aiEnabled) {
@@ -218,9 +218,8 @@ async function pMap(items, fn, concurrency) {
 
 // ---- Per-repo AI processing (runs concurrently) ----
 
-async function processRepo(star, cache, notesMap, languages, aiAutoCategory, AI_CATEGORY_PROMPT_VER, aiErrors) {
+async function processRepo(star, cache, notesMap, languages, aiErrors) {
   const noteData = notesMap[star.fullName] || {};
-  let category = noteData.category || "Uncategorized";
   const userNotesRaw = noteData.notes || "";
 
   const ZH_VARIANTS = ["zh-CN", "zh-TW", "zh-HK", "zh-Hans", "zh-Hant", "zh"];
@@ -235,18 +234,10 @@ async function processRepo(star, cache, notesMap, languages, aiAutoCategory, AI_
   }
 
   // Generate intros for all languages in parallel
-  const introPromises = languages.map(async (lang, i) => {
+  const introPromises = languages.map(async (lang) => {
     if (cache.aiIntro[lang]) return;
     try {
-      if (aiAutoCategory && i === 0) {
-        const result = await generateIntroAndCategory(
-          lang, star.fullName, star.description, star.topics, star.language
-        );
-        cache.aiIntro[lang] = result.intro;
-        return { type: "category", category: result.category };
-      } else {
-        cache.aiIntro[lang] = await generateIntro(lang, star.fullName, star.description);
-      }
+      cache.aiIntro[lang] = await generateIntro(lang, star.fullName, star.description);
     } catch (e) {
       aiErrors.intro.count++;
       aiErrors.intro.repos.push({ repo: star.fullName, lang, error: e.message });
@@ -254,20 +245,8 @@ async function processRepo(star, cache, notesMap, languages, aiAutoCategory, AI_
     }
   });
 
-  const introResults = await Promise.all(introPromises);
+  await Promise.all(introPromises);
   cache._introSource = introSource;
-
-  // Apply category from first language result
-  for (const r of introResults) {
-    if (r?.type === "category" && r.category && r.category !== "Uncategorized") {
-      cache._aiCategory = r.category;
-      cache._aiCategoryDesc = star.description;
-      cache._aiCategoryVer = AI_CATEGORY_PROMPT_VER;
-      if (category === "Uncategorized") {
-        category = r.category;
-      }
-    }
-  }
 
   // Store raw notes under the detected source language
   if (languages.includes(notesSourceLang)) {
@@ -293,8 +272,6 @@ async function processRepo(star, cache, notesMap, languages, aiAutoCategory, AI_
 
   await Promise.all(translatePromises);
   cache._notesSource = userNotesRaw;
-
-  return { category };
 }
 
 // ---- Main pipeline ----
@@ -330,9 +307,7 @@ async function main() {
     console.log(`Processing ${stars.length} repos (concurrency=${CONCURRENCY})...`);
     await pMap(stars, async (star) => {
       const cache = summaries[star.fullName];
-      const { category } = await processRepo(
-        star, cache, notesMap, languages, aiAutoCategory, AI_CATEGORY_PROMPT_VER, aiErrors
-      );
+      await processRepo(star, cache, notesMap, languages, aiErrors);
       processed++;
       if (processed % 10 === 0) {
         console.log(`  ${processed}/${stars.length} repos processed`);
@@ -395,20 +370,17 @@ async function main() {
     console.log("Summaries cache updated");
   }
 
-  // ---- AI smart categorization fallback for remaining Uncategorized repos ----
+  // ---- AI smart categorization: batch mode ----
   if (aiAutoCategory && aiAvailable) {
     const uncategorized = entries.filter((e) => e.category === "Uncategorized");
 
-    // Filter to only repos that need categorization:
-    // - New repos (not in cache) that are Uncategorized
-    // - Previously AI-categorized repos whose description changed
-    // - Cached categories from an older prompt version
+    // Filter to only repos that need categorization
     const toCategorize = uncategorized.filter((entry) => {
       const cache = summaries[entry.fullName];
-      if (!cache) return true; // new repo
-      if (!cache._aiCategory) return true; // never AI-categorized
-      if (cache._aiCategoryVer !== AI_CATEGORY_PROMPT_VER) return true; // prompt changed
-      if (cache._aiCategoryDesc !== entry.description) return true; // description changed
+      if (!cache) return true;
+      if (!cache._aiCategory) return true;
+      if (cache._aiCategoryVer !== AI_CATEGORY_PROMPT_VER) return true;
+      if (cache._aiCategoryDesc !== entry.description) return true;
       // Restore previous AI category
       entry.category = cache._aiCategory;
       categoriesSet.add(cache._aiCategory);
@@ -417,28 +389,50 @@ async function main() {
     });
 
     if (toCategorize.length > 0) {
-      console.log(`AI categorizing ${toCategorize.length} new/changed uncategorized repo(s)...`);
-      await pMap(toCategorize, async (entry) => {
+      const BATCH_SIZE = 30;
+      console.log(`AI batch categorizing ${toCategorize.length} repo(s) in groups of ${BATCH_SIZE}...`);
+      let currentCategories = Array.from(categoriesSet);
+
+      for (let i = 0; i < toCategorize.length; i += BATCH_SIZE) {
+        const batch = toCategorize.slice(i, i + BATCH_SIZE);
+        const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+        const totalBatches = Math.ceil(toCategorize.length / BATCH_SIZE);
+        console.log(`  Batch ${batchNum}/${totalBatches} (${batch.length} repos, ${currentCategories.length} existing categories)...`);
+
         try {
-          const suggested = await suggestCategory(
-            entry.fullName, entry.description, entry.topics, entry.language
-          );
-          if (suggested && suggested !== "Uncategorized") {
-            entry.category = suggested;
-            categoriesSet.add(suggested);
-            aiCategories.add(suggested);
-            if (!summaries[entry.fullName]) summaries[entry.fullName] = { aiIntro: {}, userNotes: {} };
-            summaries[entry.fullName]._aiCategory = suggested;
-            summaries[entry.fullName]._aiCategoryDesc = entry.description;
-            summaries[entry.fullName]._aiCategoryVer = AI_CATEGORY_PROMPT_VER;
-            summaryChanged = true;
+          const assignments = await batchSuggestCategories(batch, currentCategories);
+          for (const a of assignments) {
+            const entry = batch.find((e) => e.fullName === a.repo);
+            if (entry && a.category && a.category !== "Uncategorized") {
+              entry.category = a.category;
+              categoriesSet.add(a.category);
+              aiCategories.add(a.category);
+              if (!currentCategories.includes(a.category)) {
+                currentCategories.push(a.category);
+              }
+              if (!summaries[entry.fullName]) summaries[entry.fullName] = { aiIntro: {}, userNotes: {} };
+              summaries[entry.fullName]._aiCategory = a.category;
+              summaries[entry.fullName]._aiCategoryDesc = entry.description;
+              summaries[entry.fullName]._aiCategoryVer = AI_CATEGORY_PROMPT_VER;
+              summaryChanged = true;
+            }
+          }
+          // Count repos that weren't assigned
+          const assigned = new Set(assignments.map((a) => a.repo));
+          for (const entry of batch) {
+            if (!assigned.has(entry.fullName)) {
+              aiErrors.category.count++;
+              aiErrors.category.repos.push({ repo: entry.fullName, error: "not in batch response" });
+            }
           }
         } catch (e) {
-          aiErrors.category.count++;
-          aiErrors.category.repos.push({ repo: entry.fullName, error: e.message });
-          console.warn(`AI categorize failed for ${entry.fullName}: ${e.message}`);
+          aiErrors.category.count += batch.length;
+          for (const entry of batch) {
+            aiErrors.category.repos.push({ repo: entry.fullName, error: e.message });
+          }
+          console.warn(`  Batch ${batchNum} failed: ${e.message}`);
         }
-      }, CONCURRENCY);
+      }
     } else {
       console.log("No new uncategorized repos to categorize");
     }

@@ -107,6 +107,7 @@ pnpm dev
 
 ```bash
 # 语言列表，逗号分隔。第一项为默认语言。"en" 是内置基础语言。
+# 如果不需要多语言，只保留你需要的那个即可——每多一种语言都会触发额外的 AI 调用，增加构建时间和成本。
 SITE_LANGUAGES=en,zh-CN
 
 # 自定义标题（JSON 格式，按语言代码索引），留空使用默认文案
@@ -171,7 +172,7 @@ pnpm run all      # 拉取 stars → AI 生成 → vite build → dist/
 | `AI_MODEL` | 否 | 模型名（默认 `gpt-4o-mini`） |
 | `AI_ENABLED` | 否 | `on` / `off`（默认 `on`） |
 | `AI_AUTO_CATEGORY` | 否 | `on` / off（默认 off）。AI 自动分类未归类仓库 |
-| `SITE_LANGUAGES` | 否 | 语言列表，逗号分隔（默认 `en`） |
+| `SITE_LANGUAGES` | 否 | 语言列表，逗号分隔（默认 `en`）。不需要多语言时只保留需要的，避免额外 AI 开销 |
 | `SITE_TITLE` | 否 | 自定义标题，JSON 格式，按语言代码索引 |
 | `SITE_SUBTITLE` | 否 | 自定义副标题，JSON 格式，按语言代码索引 |
 | `PROJECT_URL` | 否 | 自定义页脚项目链接 |
