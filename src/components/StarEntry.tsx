@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { type StarEntry as StarEntryType, type Language } from "@/types";
@@ -15,11 +16,14 @@ interface StarEntryProps {
 
 export function StarEntry({ entry, language, onTopicClick }: StarEntryProps) {
   const { t } = useT();
+  const [topicsExpanded, setTopicsExpanded] = useState(false);
   const aiIntro = entry.aiIntro?.[language] || "";
   const intro = aiIntro || entry.description;
   const notes = entry.userNotes?.[language] || "";
   const pushedAgo = timeAgo(entry.pushedAt, language, t("time.justNow"));
   const isAiGenerated = !!aiIntro;
+  const visibleTopics = topicsExpanded ? entry.topics : entry.topics.slice(0, 5);
+  const hiddenCount = entry.topics.length - 5;
 
   return (
     <div className="rounded-lg border bg-card p-4 space-y-3">
@@ -44,12 +48,17 @@ export function StarEntry({ entry, language, onTopicClick }: StarEntryProps) {
 
       {/* Tags */}
       <div className="flex flex-wrap items-center gap-1.5">
+        {entry.archived && (
+          <Badge variant="outline" className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-0">
+            Archived
+          </Badge>
+        )}
         {entry.language && (
           <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-0">
             {entry.language}
           </Badge>
         )}
-        {entry.topics.slice(0, 5).map((topic) => (
+        {visibleTopics.map((topic) => (
           <Badge
             key={topic}
             variant="outline"
@@ -59,6 +68,14 @@ export function StarEntry({ entry, language, onTopicClick }: StarEntryProps) {
             {topic}
           </Badge>
         ))}
+        {hiddenCount > 0 && (
+          <button
+            onClick={() => setTopicsExpanded(true)}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            +{hiddenCount}
+          </button>
+        )}
         <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
           <Clock className="h-3 w-3" />
           {pushedAgo}

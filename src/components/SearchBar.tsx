@@ -1,6 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { useT } from "@/i18n/useTranslation";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 
 interface SearchBarProps {
   value: string;
@@ -18,8 +18,17 @@ export function SearchBar({ value, onChange }: SearchBarProps) {
         placeholder={t("search.placeholder")}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="pl-8 h-8"
+        className="pl-8 pr-7 h-8"
       />
+      {value && (
+        <button
+          onClick={() => onChange("")}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+          aria-label="Clear search"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      )}
     </div>
   );
 }

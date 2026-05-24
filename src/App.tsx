@@ -8,13 +8,19 @@ import { Footer } from "@/components/Footer";
 import { Badge } from "@/components/ui/badge";
 import { useStars } from "@/hooks/useStars";
 import { useLanguage } from "@/i18n/useLanguage";
+import { useT } from "@/i18n/useTranslation";
+import { Loader2, AlertCircle, ChevronUp } from "lucide-react";
 
 export default function App() {
   const { language, setLanguage, setAvailableLanguages } = useLanguage();
+  const { t } = useT();
   const {
     loading,
+    error,
     searchQuery,
     setSearchQuery,
+    sortBy,
+    setSortBy,
     categories,
     groupedByCategory,
     paginatedCategories,
@@ -48,6 +54,14 @@ export default function App() {
   }, [loading, availableLanguages, language, setLanguage]);
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
+  // Show back-to-top button when scrolled down
+  useEffect(() => {
+    const handleScroll = () => setShowBackToTop(window.scrollY > 400);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   // Scroll spy
   useEffect(() => {
@@ -101,7 +115,22 @@ export default function App() {
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center gap-3">
+        <AlertCircle className="h-8 w-8 text-destructive" />
+        <p className="text-muted-foreground">{t("error.loadFailed")}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="text-sm text-primary hover:underline"
+        >
+          {t("error.retry")}
+        </button>
       </div>
     );
   }
@@ -113,6 +142,8 @@ export default function App() {
       <Header
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
         totalEntries={totalEntries}
         categoriesCount={categories.length}
         siteConfig={siteConfig}
@@ -164,7 +195,17 @@ export default function App() {
         </main>
       </div>
 
-      <Footer lastUpdated={lastUpdated} />
+      <Footer lastUpdated={lastUpdated} projectUrl={siteConfig.projectUrl} />
+
+      {showBackToTop && (
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          className="fixed bottom-6 right-6 z-50 h-9 w-9 rounded-full border bg-background/95 shadow-md backdrop-blur hover:bg-accent transition-colors flex items-center justify-center"
+          aria-label={t("backToTop")}
+        >
+          <ChevronUp className="h-4 w-4" />
+        </button>
+      )}
     </div>
   );
 }

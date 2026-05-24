@@ -1,14 +1,23 @@
-import { Star, LayoutList } from "lucide-react";
+import { Star, LayoutList, ArrowUpDown } from "lucide-react";
 import { SearchBar } from "@/components/SearchBar";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { type SiteConfig } from "@/types";
+import { type SortKey } from "@/hooks/useStars";
 import { useT } from "@/i18n/useTranslation";
 
 interface HeaderProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  sortBy: SortKey;
+  onSortChange: (key: SortKey) => void;
   totalEntries: number;
   categoriesCount: number;
   siteConfig: SiteConfig;
@@ -17,6 +26,8 @@ interface HeaderProps {
 export function Header({
   searchQuery,
   onSearchChange,
+  sortBy,
+  onSortChange,
   totalEntries,
   categoriesCount,
   siteConfig,
@@ -25,6 +36,13 @@ export function Header({
 
   const title = siteConfig.title?.[language] || t("app.title");
   const subtitle = siteConfig.subtitle?.[language] || t("app.subtitle");
+
+  const sortOptions: { key: SortKey; label: string }[] = [
+    { key: "starred", label: t("sort.starred") },
+    { key: "stars", label: t("sort.stars") },
+    { key: "updated", label: t("sort.updated") },
+    { key: "name", label: t("sort.name") },
+  ];
 
   return (
     <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -61,6 +79,24 @@ export function Header({
         </div>
 
         <SearchBar value={searchQuery} onChange={onSearchChange} />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-input bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
+              <ArrowUpDown className="h-4 w-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-36">
+            {sortOptions.map(({ key, label }) => (
+              <DropdownMenuItem
+                key={key}
+                onClick={() => onSortChange(key)}
+                className={sortBy === key ? "bg-accent" : ""}
+              >
+                {label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
         <LanguageToggle />
         <ThemeToggle />
       </div>

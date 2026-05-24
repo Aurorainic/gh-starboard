@@ -29,6 +29,13 @@ export const translations: Record<string, Record<string, string>> = {
     "theme.auto": "跟随系统",
     "theme.dark": "暗色",
     "theme.light": "亮色",
+    "sort.starred": "添加顺序",
+    "sort.stars": "按星标数",
+    "sort.updated": "按更新时间",
+    "sort.name": "按名称",
+    "error.loadFailed": "数据加载失败",
+    "error.retry": "重试",
+    "backToTop": "回到顶部",
   },
   en: {
     "app.title": "GitHub Stars Notes",
@@ -58,6 +65,13 @@ export const translations: Record<string, Record<string, string>> = {
     "theme.auto": "Auto",
     "theme.dark": "Dark",
     "theme.light": "Light",
+    "sort.starred": "Star order",
+    "sort.stars": "By stars",
+    "sort.updated": "By updated",
+    "sort.name": "By name",
+    "error.loadFailed": "Failed to load data",
+    "error.retry": "Retry",
+    "backToTop": "Back to top",
   },
 };
 

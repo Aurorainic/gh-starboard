@@ -4,16 +4,18 @@ import { timeAgo } from "@/lib/timeAgo";
 
 interface FooterProps {
   lastUpdated: string;
+  projectUrl?: string;
 }
 
-export function Footer({ lastUpdated }: FooterProps) {
+export function Footer({ lastUpdated, projectUrl }: FooterProps) {
   const { t } = useT();
   const { language } = useLanguage();
   const refreshedAgo = timeAgo(lastUpdated, language, t("time.justNow"));
 
+  const fallbackUrl = "https://github.com/Aurorainic/gh-starboard";
   const projectLink = (
     <a
-      href="https://github.com/Aurorainic/gh-starboard"
+      href={projectUrl || fallbackUrl}
       target="_blank"
       rel="noopener noreferrer"
       className="underline underline-offset-4 hover:text-foreground transition-colors"

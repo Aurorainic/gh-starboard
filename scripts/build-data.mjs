@@ -319,6 +319,7 @@ async function main() {
       subtitle: siteSubtitle,
       languages,
       aiEnabled,
+      projectUrl: process.env.PROJECT_URL || "",
     },
     languages,
   };
