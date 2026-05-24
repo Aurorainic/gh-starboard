@@ -211,7 +211,7 @@ OUTPUT FORMAT: Return ONLY a valid JSON array, nothing else. No markdown, no exp
 
   const userMsg = `${categoryList}\n\nREPOSITORIES:\n${repoList}`;
 
-  const result = await chat(systemPrompt, userMsg, 4000, 0.3);
+  const result = await chat(systemPrompt, userMsg, 3000, 0.3);
 
   // Aggressive JSON extraction: try multiple strategies
   let jsonStr = result.trim();

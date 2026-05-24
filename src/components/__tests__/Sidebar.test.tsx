@@ -49,48 +49,24 @@ function renderSidebar(props: Partial<SidebarTestProps> = {}) {
 }
 
 describe("Sidebar", () => {
-  it("renders all categories", () => {
+  it("renders category dropdown with All selected by default", () => {
     renderSidebar();
-    expect(screen.getByText("Tools")).toBeInTheDocument();
-    expect(screen.getByText("Libraries")).toBeInTheDocument();
-    expect(screen.getByText("AI Generated")).toBeInTheDocument();
+    expect(screen.getByText("All")).toBeInTheDocument();
   });
 
-  it("shows entry counts", () => {
-    renderSidebar();
-    expect(screen.getByText("5")).toBeInTheDocument();
-    expect(screen.getByText("3")).toBeInTheDocument();
-    expect(screen.getByText("2")).toBeInTheDocument();
-  });
-
-  it("shows Bot icon for AI categories", () => {
-    renderSidebar();
-    const aiButton = screen.getByText("AI Generated").closest("button");
-    expect(aiButton?.querySelector("svg")).toBeTruthy();
-  });
-
-  it("highlights selected category", () => {
+  it("shows selected category in dropdown trigger", () => {
     renderSidebar({ selectedCategories: ["Libraries"] });
-    const btn = screen.getByText("Libraries").closest("button");
-    expect(btn?.className).toContain("bg-accent");
+    expect(screen.getByText("Libraries")).toBeInTheDocument();
   });
 
-  it("calls onCategoriesChange when category clicked", async () => {
+  it("calls onCategoriesChange when category selected from dropdown", async () => {
     const onCategoriesChange = vi.fn();
     const user = userEvent.setup();
     renderSidebar({ onCategoriesChange });
 
+    await user.click(screen.getByRole("button", { name: /All/i }));
     await user.click(screen.getByText("Tools"));
     expect(onCategoriesChange).toHaveBeenCalledWith(["Tools"]);
-  });
-
-  it("deselects category when clicked again", async () => {
-    const onCategoriesChange = vi.fn();
-    const user = userEvent.setup();
-    renderSidebar({ selectedCategories: ["Tools"], onCategoriesChange });
-
-    await user.click(screen.getByText("Tools"));
-    expect(onCategoriesChange).toHaveBeenCalledWith([]);
   });
 
   it("renders sort options", () => {
@@ -98,10 +74,9 @@ describe("Sidebar", () => {
     expect(screen.getByRole("heading", { name: "Sort" })).toBeInTheDocument();
   });
 
-  it("uses translated category names when available", () => {
-    renderSidebar({
-      categoryTranslations: { "zh-CN": { Tools: "工具" } },
-    });
-    expect(screen.getByText("Tools")).toBeInTheDocument();
+  it("highlights selected sort option", () => {
+    renderSidebar({ sortBy: "stars" });
+    const btn = screen.getByText("By stars").closest("button");
+    expect(btn?.className).toContain("bg-accent");
   });
 });

@@ -2,9 +2,16 @@ import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
+import {
+  DropdownMenu,
+  DropdownMenuItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useT } from "@/i18n/useTranslation";
-import { Bot, ArrowUpDown, ChevronDown } from "lucide-react";
+import { Bot, ArrowUpDown, ChevronDown, Filter } from "lucide-react";
 import { type SortKey, type Filters, MAX_STARS_FILTER } from "@/hooks/useStars";
 
 interface CategoryCount {
@@ -63,12 +70,7 @@ export function Sidebar({
     onFiltersChange({ ...filters, languages: next });
   };
 
-  const toggleCategory = (name: string) => {
-    const next = selectedCategories.includes(name)
-      ? selectedCategories.filter((c) => c !== name)
-      : [...selectedCategories, name];
-    onCategoriesChange(next);
-  };
+  const selectedCategory = selectedCategories[0] || "";
 
   return (
     <aside className="hidden lg:block w-60 shrink-0">
@@ -78,50 +80,43 @@ export function Sidebar({
 
             {/* Categories */}
             <div>
-              <h2 className="mb-2 px-2 text-sm font-semibold tracking-tight flex items-center justify-between">
-                <span>{t("sidebar.toc")}</span>
-                {selectedCategories.length > 0 && (
-                  <button
-                    onClick={() => onCategoriesChange([])}
-                    className="text-xs font-normal text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {t("sidebar.clearAll") || "Clear"}
-                  </button>
-                )}
+              <h2 className="mb-2 px-2 text-sm font-semibold tracking-tight flex items-center gap-1.5">
+                <Filter className="h-3.5 w-3.5" />
+                {t("sidebar.toc")}
               </h2>
-              <div className="space-y-0.5">
-                {categories.map((cat) => {
-                  const checked = selectedCategories.includes(cat.name);
-                  return (
-                    <button
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between text-sm font-normal">
+                    <span className="truncate">
+                      {selectedCategory ? catName(selectedCategory) : t("sidebar.all")}
+                    </span>
+                    <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56 max-h-96 overflow-y-auto">
+                  <DropdownMenuItem
+                    onClick={() => onCategoriesChange([])}
+                    className={cn("cursor-pointer", !selectedCategory && "bg-accent")}
+                  >
+                    {t("sidebar.all")}
+                  </DropdownMenuItem>
+                  {categories.map((cat) => (
+                    <DropdownMenuItem
                       key={cat.name}
-                      onClick={() => toggleCategory(cat.name)}
-                      className={cn(
-                        "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm hover:bg-accent transition-colors text-left",
-                        checked && "bg-accent"
-                      )}
+                      onClick={() => onCategoriesChange([cat.name])}
+                      className={cn("cursor-pointer", selectedCategory === cat.name && "bg-accent")}
                     >
-                      <span className={cn(
-                        "h-4 w-4 rounded border shrink-0 inline-flex items-center justify-center",
-                        checked
-                          ? "bg-primary border-primary text-primary-foreground"
-                          : "border-muted-foreground/40"
-                      )}>
-                        {checked && (
-                          <svg viewBox="0 0 10 8" className="h-2.5 w-2.5 fill-current">
-                            <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        )}
+                      <span className="flex items-center gap-2 w-full">
+                        <span className="truncate flex-1">{catName(cat.name)}</span>
+                        <span className="flex items-center gap-1 shrink-0 text-xs text-muted-foreground">
+                          {cat.isAi && <Bot className="h-3 w-3" />}
+                          <span>{cat.count}</span>
+                        </span>
                       </span>
-                      <span className="truncate flex-1">{catName(cat.name)}</span>
-                      <span className="flex items-center gap-1 shrink-0">
-                        {cat.isAi && <Bot className="h-3 w-3 text-muted-foreground" />}
-                        <span className="text-xs text-muted-foreground">{cat.count}</span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             <Separator />

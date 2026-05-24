@@ -98,6 +98,7 @@ async function loadSummaries() {
   if (d1) {
     try {
       raw = await d1.loadSummariesFromD1();
+      console.log(`Loaded ${Object.keys(raw).length} entries from D1 cache`);
     } catch (e) {
       console.warn(`D1 read failed: ${e.message}. Falling back to file.`);
     }
@@ -388,9 +389,10 @@ async function main() {
     });
 
     if (toCategorize.length > 0) {
-      const BATCH_SIZE = 15;
+      const BATCH_SIZE = 10;
       console.log(`AI batch categorizing ${toCategorize.length} repo(s) in groups of ${BATCH_SIZE}...`);
       let currentCategories = Array.from(categoriesSet);
+      const failedRepos = [];
 
       for (let i = 0; i < toCategorize.length; i += BATCH_SIZE) {
         const batch = toCategorize.slice(i, i + BATCH_SIZE);
@@ -416,20 +418,45 @@ async function main() {
               summaryChanged = true;
             }
           }
-          // Count repos that weren't assigned
+          // Collect repos that weren't assigned for retry
           const assigned = new Set(assignments.map((a) => a.repo));
           for (const entry of batch) {
             if (!assigned.has(entry.fullName)) {
-              aiErrors.category.count++;
-              aiErrors.category.repos.push({ repo: entry.fullName, error: "not in batch response" });
+              failedRepos.push(entry);
             }
           }
         } catch (e) {
-          aiErrors.category.count += batch.length;
-          for (const entry of batch) {
+          console.warn(`  Batch ${batchNum} failed: ${e.message}, will retry individually`);
+          failedRepos.push(...batch);
+        }
+      }
+
+      // Retry failed repos individually
+      if (failedRepos.length > 0) {
+        console.log(`Retrying ${failedRepos.length} failed repo(s) individually...`);
+        for (const entry of failedRepos) {
+          try {
+            const category = await suggestCategory(entry.fullName, entry.description, entry.topics, entry.language);
+            if (category && category !== "Uncategorized") {
+              entry.category = category;
+              categoriesSet.add(category);
+              aiCategories.add(category);
+              if (!currentCategories.includes(category)) {
+                currentCategories.push(category);
+              }
+              if (!summaries[entry.fullName]) summaries[entry.fullName] = { aiIntro: {}, userNotes: {} };
+              summaries[entry.fullName]._aiCategory = category;
+              summaries[entry.fullName]._aiCategoryDesc = entry.description;
+              summaries[entry.fullName]._aiCategoryVer = AI_CATEGORY_PROMPT_VER;
+              summaryChanged = true;
+            } else {
+              aiErrors.category.count++;
+              aiErrors.category.repos.push({ repo: entry.fullName, error: "no valid category returned" });
+            }
+          } catch (e) {
+            aiErrors.category.count++;
             aiErrors.category.repos.push({ repo: entry.fullName, error: e.message });
           }
-          console.warn(`  Batch ${batchNum} failed: ${e.message}`);
         }
       }
     } else {
@@ -494,7 +521,7 @@ async function main() {
   }
 
   const DEFAULT_LANG = "en";
-  const SKIP_LANGS = new Set([DEFAULT_LANG, "zh-CN"]);
+  const SKIP_LANGS = new Set([DEFAULT_LANG]);
   const uiTranslations = {};
   const categoryTranslations = {};
 
