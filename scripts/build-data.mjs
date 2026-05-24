@@ -41,7 +41,6 @@ const languages = (process.env.SITE_LANGUAGES || "en")
   .filter(Boolean);
 
 const aiEnabled = (process.env.AI_ENABLED || "on").toLowerCase() === "on";
-const aiAutoCategory = (process.env.AI_AUTO_CATEGORY || "").toLowerCase() === "on";
 
 let siteTitle = {};
 let siteSubtitle = {};
@@ -371,7 +370,7 @@ async function main() {
   }
 
   // ---- AI smart categorization: batch mode ----
-  if (aiAutoCategory && aiAvailable) {
+  if (aiAvailable) {
     const uncategorized = entries.filter((e) => e.category === "Uncategorized");
 
     // Filter to only repos that need categorization
@@ -436,8 +435,6 @@ async function main() {
     } else {
       console.log("No new uncategorized repos to categorize");
     }
-  } else if (!aiAutoCategory) {
-    console.log("AI_AUTO_CATEGORY=off, skipping auto categorization");
   }
 
   // Remove empty "Uncategorized" if all repos got categorized

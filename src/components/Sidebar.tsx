@@ -1,10 +1,11 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { useT } from "@/i18n/useTranslation";
-import { Bot, ArrowUpDown } from "lucide-react";
+import { Bot, ArrowUpDown, ChevronDown } from "lucide-react";
 import { type SortKey, type Filters, MAX_STARS_FILTER } from "@/hooks/useStars";
 
 interface CategoryCount {
@@ -23,6 +24,7 @@ interface SidebarProps {
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
   maxStarsValue: number;
+  entryLanguages: string[];
 }
 
 export function Sidebar({
@@ -35,8 +37,10 @@ export function Sidebar({
   filters,
   onFiltersChange,
   maxStarsValue,
+  entryLanguages,
 }: SidebarProps) {
   const { t, language } = useT();
+  const [langExpanded, setLangExpanded] = useState(false);
 
   function catName(name: string) {
     return categoryTranslations[language]?.[name] ?? name;
@@ -53,6 +57,13 @@ export function Sidebar({
   const currentMin = filters.minStars;
   const currentMax = filters.maxStars === MAX_STARS_FILTER ? sliderMax : filters.maxStars;
 
+  const toggleLanguage = (lang: string) => {
+    const next = filters.languages.includes(lang)
+      ? filters.languages.filter((l) => l !== lang)
+      : [...filters.languages, lang];
+    onFiltersChange({ ...filters, languages: next });
+  };
+
   return (
     <aside className="hidden lg:block w-60 shrink-0">
       <nav className="sticky top-14 pt-4">
@@ -65,7 +76,6 @@ export function Sidebar({
                 {t("sidebar.toc")}
               </h2>
               <div className="space-y-0.5">
-                {/* All */}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -106,7 +116,7 @@ export function Sidebar({
             <div>
               <h2 className="mb-2 px-4 text-sm font-semibold tracking-tight flex items-center gap-1.5">
                 <ArrowUpDown className="h-3.5 w-3.5" />
-                Sort
+                {t("sidebar.sort")}
               </h2>
               <div className="space-y-0.5">
                 {sortOptions.map(({ key, label }) => (
@@ -131,7 +141,7 @@ export function Sidebar({
             {/* Star range */}
             <div className="px-4">
               <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
-                <span>Stars</span>
+                <span>{t("sidebar.stars")}</span>
                 <span>
                   {currentMin.toLocaleString()} –{" "}
                   {currentMax === sliderMax && filters.maxStars === MAX_STARS_FILTER
@@ -153,6 +163,38 @@ export function Sidebar({
                 }}
                 className="w-full"
               />
+            </div>
+
+            <Separator />
+
+            {/* Languages */}
+            <div>
+              <button
+                onClick={() => setLangExpanded(!langExpanded)}
+                className="flex w-full items-center justify-between px-4 mb-2 text-sm font-semibold tracking-tight hover:text-foreground transition-colors text-muted-foreground"
+              >
+                <span>{t("sidebar.languages")}{filters.languages.length > 0 ? ` (${filters.languages.length})` : ""}</span>
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${langExpanded ? "rotate-180" : ""}`} />
+              </button>
+              {langExpanded && (
+                <div className="grid grid-cols-2 gap-0.5 px-4">
+                  {entryLanguages.map((lang) => (
+                    <button
+                      key={lang}
+                      onClick={() => toggleLanguage(lang)}
+                      className="flex items-center gap-1.5 px-1.5 py-1 rounded text-xs hover:bg-accent transition-colors text-left"
+                    >
+                      <span className={cn(
+                        "h-3 w-3 rounded-sm border shrink-0 inline-flex items-center justify-center text-[10px]",
+                        filters.languages.includes(lang) ? "bg-primary text-primary-foreground" : ""
+                      )}>
+                        {filters.languages.includes(lang) ? "✓" : ""}
+                      </span>
+                      <span className="truncate">{lang}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
           </div>

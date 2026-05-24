@@ -126,7 +126,6 @@ export default function App() {
         onHomeClick={() => { setSearchQuery(""); window.scrollTo({ top: 0 }); }}
         filters={filters}
         onFiltersChange={setFilters}
-        entryLanguages={entryLanguages}
         totalEntries={totalEntries}
         categoriesCount={categories.length}
         siteConfig={siteConfig}
@@ -147,6 +146,7 @@ export default function App() {
           filters={filters}
           onFiltersChange={setFilters}
           maxStarsValue={maxStarsValue}
+          entryLanguages={entryLanguages}
         />
 
         <main className="flex-1 min-w-0 px-4 py-6 lg:px-8">

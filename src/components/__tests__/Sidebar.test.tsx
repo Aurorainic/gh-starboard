@@ -21,6 +21,7 @@ interface SidebarTestProps {
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
   maxStarsValue: number;
+  entryLanguages: string[];
 }
 
 function renderSidebar(props: Partial<SidebarTestProps> = {}) {
@@ -38,6 +39,7 @@ function renderSidebar(props: Partial<SidebarTestProps> = {}) {
     filters: { languages: [], minStars: 0, maxStars: Number.MAX_SAFE_INTEGER, category: "" },
     onFiltersChange: vi.fn(),
     maxStarsValue: 1000,
+    entryLanguages: ["JavaScript", "Python", "TypeScript"],
   };
   return render(
     <LanguageProvider>

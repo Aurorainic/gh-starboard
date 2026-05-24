@@ -124,14 +124,20 @@ export async function saveSummariesToD1(summaries) {
     }
   }
 
-  // Remove stale rows no longer in summaries using SQL NOT IN
+  // Remove stale rows no longer in summaries (batched NOT IN to avoid SQL variable limit)
   const currentNames = entries.map(([name]) => name);
   if (currentNames.length > 0) {
-    const placeholders = currentNames.map(() => "?").join(",");
-    const staleRows = await d1Query(
-      `SELECT full_name FROM summaries WHERE full_name NOT IN (${placeholders})`,
-      currentNames
-    );
+    let staleRows = [];
+    const QUERY_BATCH = 100;
+    for (let i = 0; i < currentNames.length; i += QUERY_BATCH) {
+      const batch = currentNames.slice(i, i + QUERY_BATCH);
+      const placeholders = batch.map(() => "?").join(",");
+      const rows = await d1Query(
+        `SELECT full_name FROM summaries WHERE full_name NOT IN (${placeholders})`,
+        batch
+      );
+      staleRows.push(...rows);
+    }
 
     if (staleRows.length > 0) {
       const BATCH = 50;
