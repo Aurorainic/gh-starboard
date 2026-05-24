@@ -1,5 +1,5 @@
 # GH-STARBOARD
-[![Netlify Status](https://api.netlify.com/api/v1/badges/609c442f-67f1-41c2-89fc-3a947a6b225e/deploy-status)](https://app.netlify.com/projects/gh-starboard-dev/deploys)
+
 > 将 GitHub Stars 转化为可浏览、可检索、带个人笔记的页面。
 
 > [!IMPORTANT]
@@ -44,17 +44,17 @@
 
 - **Markdown 笔记** — 在 `content/stars.md` 中按分类为 starred 仓库写个人笔记
 - **AI 自动简介** — AI 为每个仓库生成指定语言的简介，增量缓存，不重复消耗 API
-- **AI 智能分类** — 可选自动分类未归类仓库（`AI_AUTO_CATEGORY=on`），增量更新新增/变更仓库
+- **AI 智能分类** — 可选自动分类未归类仓库（`AI_AUTO_CATEGORY=on`），批量处理（每批 5 个仓库），失败自动逐个重试
 - **AI UI 翻译** — 构建时 AI 翻译非英文/中文的 UI 文案，存储在数据层
 - **智能搜索** — 按名称、描述、笔记搜索；支持 `topic:` 前缀精确搜索标签。300ms 防抖
-- **高级过滤** — 按语言（多选）、星数范围（双滑块）过滤，活跃过滤条件显示为 badge
+- **高级过滤** — 按语言（多选）、星数范围（双滑块）、分类（下拉单选）过滤，活跃过滤条件显示为 badge
 - **排序** — 按收藏顺序、星数、最近更新、名称排序
 - **标签可点击** — 点击任意话题 badge 即可按标签过滤。话题超过 5 个时截断，显示 "+N more" 展开按钮
 - **归档检测** — 仓库被作者标记为 archived 时显示黄色 "Archived" 徽章
 - **过期仓库提示** — 更新时间按颜色区分：黄色为 6 个月以上，红色为 1 年以上
 - **多语言支持** — 默认英文，通过 `SITE_LANGUAGES` 支持任意语言。AI 自动翻译笔记和 UI 文案
 - **响应式布局** — 移动端单列、桌面端双列网格
-- **D1 外置缓存** — Cloudflare D1 外置缓存（推荐），CI 工作区重置后仍保留 AI 缓存。未配置时降级到本地文件
+- **D1 外置缓存** — Cloudflare D1 外置缓存（推荐），存储 AI 简介和分类翻译，CI 工作区重置后仍保留。未配置时降级到本地文件
 - **分类分页** — 按分类组分页，不会拆分分类跨页显示。支持直接输入页码跳转
 - **三模式主题** — Auto（跟随系统）、Dark、Light。`index.html` 内嵌防闪烁脚本
 
@@ -134,6 +134,7 @@ PROJECT_URL=https://github.com/your-user/your-repo
 - **AI 简介** 会为每个仓库生成对应语言版本
 - **用户笔记** 假设 `zh-CN` 为原始撰写语言；其他语言由 AI 自动翻译
 - **UI 文案** 对非英文/中文的语言在构建时由 AI 自动翻译
+- **分类名称** 翻译后增量缓存到 D1，避免重复 API 调用
 
 ## 部署
 
@@ -305,6 +306,9 @@ build-data.mjs            │
 | `pnpm run all` | 一键执行全流程 |
 | `pnpm run d1-migrate` | 初始化 D1 表结构 |
 | `pnpm run d1-seed` | 从本地 summaries.json 迁移到 D1（一次性） |
+| `pnpm run d1-sync` | 从 D1 同步缓存到本地（如果 D1 更新） |
+| `pnpm run d1-clear` | 清空 D1 所有缓存 |
+| `pnpm run d1-clear-categories` | 仅清空 D1 分类缓存 |
 
 ## 技术栈
 

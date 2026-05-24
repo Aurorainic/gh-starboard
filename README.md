@@ -1,5 +1,5 @@
 # GH-STARBOARD
-[![Netlify Status](https://api.netlify.com/api/v1/badges/609c442f-67f1-41c2-89fc-3a947a6b225e/deploy-status)](https://app.netlify.com/projects/gh-starboard-dev/deploys)
+
 > Turn your GitHub stars into a browsable, searchable, notes page.
 
 > [!IMPORTANT]
@@ -45,17 +45,17 @@
 
 - **Markdown Notes** — Write personal notes for starred repos in `content/stars.md`, organized by categories
 - **AI Auto Intro** — AI generates concise summaries for each repo in your preferred language, cached incrementally
-- **AI Smart Categorization** — Optionally auto-categorize uncategorized repos using AI (`AI_AUTO_CATEGORY=on`), with incremental updates on new/changed repos
+- **AI Smart Categorization** — Optionally auto-categorize uncategorized repos using AI (`AI_AUTO_CATEGORY=on`), with batch processing (5 repos per call) and automatic retry on failure
 - **AI UI Translation** — Build-time AI translation of UI texts for non-English/Chinese languages, stored in data layer
 - **Smart Search** — Search by name, description, notes, or use `topic:` prefix for exact tag filtering. 300ms debounce
-- **Advanced Filters** — Filter by language (multi-select), star count range (dual-thumb slider), with active filter badges
+- **Advanced Filters** — Filter by language (multi-select), star count range (dual-thumb slider), category (dropdown single-select), with active filter badges
 - **Sorting** — Sort by star order, star count, last updated, or name
 - **Clickable Tags** — Click any topic badge to filter repos by that tag. Topics truncate at 5 with "+N more" expansion
 - **Archived Detection** — Yellow "Archived" badge on repos marked as archived by their owner
 - **Stale Repo Indicator** — Update time color-coded: yellow for 6+ months, red for 1+ year
 - **Multi-language** — English by default, support for arbitrary languages via `SITE_LANGUAGES`. AI translates notes and UI texts
 - **Responsive** — 1-column on mobile, 2-column grid on desktop
-- **D1 Cache** — Cloudflare D1 external cache for AI summaries (recommended), survives CI workspace resets. Falls back to local file if not configured
+- **D1 Cache** — Cloudflare D1 external cache for AI summaries and category translations (recommended), survives CI workspace resets. Falls back to local file if not configured
 - **Category Pagination** — Paginates by category groups, never splits a category across pages. Direct page-jump input
 - **Three-mode Theme** — Auto (system), dark, light. Anti-flash script in `index.html`
 
@@ -136,6 +136,7 @@ The app auto-detects languages from `SITE_LANGUAGES`. For each language:
 - **AI intro** is generated for every repo
 - **Your notes** are stored raw for `zh-CN` (assumed to be your writing language) and auto-translated to all other languages
 - **UI texts** are auto-translated for non-English/Chinese languages at build time
+- **Category names** are translated and cached incrementally in D1 to avoid repeated API calls
 
 ## Deploy
 
@@ -220,6 +221,9 @@ export async function translateText(text, targetLanguage, sourceLanguage)
 export async function suggestCategory(repoName, description, topics, language, existingCategories)
 // Category suggestion fallback for repos with cached intros but missing category
 
+export async function batchSuggestCategories(repos, existingCategories)
+// Batch categorization (5 repos per call) with automatic retry on failure
+
 export async function translateUITexts(texts, targetLanguage)
 // Batch-translate UI key-value pairs, preserving {variable} placeholders
 
@@ -229,9 +233,16 @@ export async function healthCheck(retries)
 
 Results are cached incrementally — only new repos trigger API calls. Un-starred repos are auto-pruned from cache. Set `AI_ENABLED=off` to skip AI entirely and fall back to GitHub descriptions.
 
+**Smart cache invalidation**: Category cache is preserved even when repo description changes, avoiding unnecessary re-categorization.
+
 ### D1 external cache (recommended)
 
 [Cloudflare D1](https://developers.cloudflare.com/d1/) is the recommended cache backend. The build pipeline connects to D1, reads the cache, processes only new/changed repos, and writes the updated cache back. This ensures the cache persists across CI workspace resets — no need to regenerate AI summaries from scratch on every build.
+
+D1 cache now includes:
+- AI-generated intros (per language)
+- User notes translations (per language)
+- **Category translations** (per language, incrementally cached to avoid repeated API calls)
 
 Without D1, the cache falls back to a local `content/summaries.json` file, which is lost when the CI workspace is ephemeral.
 
@@ -268,7 +279,7 @@ Add `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `D1_DATABASE_ID` to `.env.l
 **6. Initialize and seed**
 
 ```bash
-pnpm run d1-migrate    # Create tables
+pnpm run d1-migrate    # Create tables (auto-migrates existing tables)
 pnpm run d1-seed       # Import existing summaries.json (if any)
 ```
 
@@ -285,8 +296,9 @@ build-data.mjs            │
 ├── Parse content/stars.md (categories + notes)
 ├── Read AI cache ← D1 external / summaries.json (fallback)
 ├── For missing repos: generate intro + category in one AI call
-├── For cached repos missing category: suggestCategory fallback
+├── For cached repos missing category: batch categorization (5 per call)
 ├── AI translate UI texts for non-en/zh-CN languages
+├── Translate category names (cached incrementally in D1)
 ├── Prune un-starred repos from cache
 ├── Write AI cache → D1 / summaries.json
 └── Merge  ──►  public/data/merged.json
@@ -305,8 +317,11 @@ build-data.mjs            │
 | `pnpm run fetch-stars` | Fetch latest stars from GitHub API |
 | `pnpm run build-data` | Parse notes + AI generate + merge |
 | `pnpm run all` | fetch → build-data → build in one pass |
-| `pnpm run d1-migrate` | Initialize D1 tables |
+| `pnpm run d1-migrate` | Initialize D1 tables (auto-migrates existing tables) |
 | `pnpm run d1-seed` | Seed D1 from local summaries.json (one-time) |
+| `pnpm run d1-clear` | Clear all D1 cache |
+| `pnpm run d1-clear-categories` | Clear only category cache columns |
+| `pnpm run d1-sync` | Sync local summaries.json to D1 |
 
 ## Tech stack
 
