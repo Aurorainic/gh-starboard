@@ -1,16 +1,46 @@
 # GH-STARBOARD
 
-> 将 GitHub Stars 转化为可浏览、可检索、带个人笔记的页面。
+> 将 GitHub Stars 转化为可浏览、可检索、带个人笔记的中英双语页面。默认英文，部署在 GitHub Pages。
 
 > [!IMPORTANT]
-> **所有代码由 生成式 AI 编写**
+> **所有代码由生成式 AI 编写**
 
 > [!NOTE]
 > 本项目目前处在早期阶段。
 
 [English](README.md) | **简体中文** | [在线示例](https://aurorainic.github.io/gh-starboard/)
 
-## 功能特性
+## 快速概览
+
+- 目的：从 GitHub Stars 构建静态页面，支持自定义 Markdown 笔记与可选 AI 自动简介。
+- 数据来源：GitHub Stars（API） + `content/stars.md` 中的用户笔记
+- 输出：`dist/`（静态站，可部署到 GitHub Pages、Netlify、Vercel 等）
+
+## 目录
+
+- [GH-STARBOARD](#gh-starboard)
+  - [快速概览](#快速概览)
+  - [目录](#目录)
+  - [功能亮点](#功能亮点)
+  - [快速开始](#快速开始)
+    - [本地开发](#本地开发)
+  - [日常使用](#日常使用)
+  - [自定义配置](#自定义配置)
+    - [站点标题与语言](#站点标题与语言)
+    - [内容语言机制](#内容语言机制)
+  - [部署](#部署)
+    - [GitHub Pages](#github-pages)
+    - [其他平台（以 Netlify 为例）](#其他平台以-netlify-为例)
+  - [配置参考](#配置参考)
+  - [AI 配置](#ai-配置)
+    - [D1 外置缓存（推荐）](#d1-外置缓存推荐)
+  - [数据管道](#数据管道)
+  - [常用命令](#常用命令)
+  - [技术栈](#技术栈)
+  - [贡献与许可](#贡献与许可)
+  - [License](#license)
+
+## 功能亮点
 
 - **Markdown 笔记** — 在 `content/stars.md` 中按分类为 starred 仓库写个人笔记
 - **AI 自动简介** — AI 为每个仓库生成指定语言的简介，增量缓存，不重复消耗 API
@@ -97,9 +127,25 @@ AI_ENABLED=on
 pnpm run all      # 拉取 stars → AI 生成 → vite build → dist/
 ```
 
-`dist/` 是纯静态站点，可部署到任意托管平台（GitHub Pages、Cloudflare Pages、Vercel、Netlify 等）。
+`dist/` 是纯静态站点，可部署到任意托管平台。
+
+### GitHub Pages
 
 项目内置 [GitHub Actions 工作流](.github/workflows/deploy.yml) 支持自动化构建（push to main、每日定时、手动触发）。在仓库设置中配置所需的 Secrets 即可。
+
+### 其他平台（以 Netlify 为例）
+
+<details>
+<summary>配置</summary>
+
+| 设置项 | 值 |
+|--------|-----|
+| Build command | `pnpm run all` |
+| Publish directory | `dist` |
+
+> **注意**：Build command 必须填 `pnpm run all`（而非 `pnpm run build`），它会先执行完整的数据管道（拉取 stars + AI 生成）再构建前端。同时在 Site settings > Environment variables 中设置 `GH_TOKEN` 和 `GH_USERNAME`。
+
+</details>
 
 ## 配置参考
 
@@ -200,7 +246,7 @@ pnpm run d1-seed       # 导入已有 summaries.json（如有）
 
 </details>
 
-## 数据流
+## 数据管道
 
 ```
 fetch-stars.mjs  ──►  public/data/stars.json
@@ -231,6 +277,11 @@ build-data.mjs            │
 ## 技术栈
 
 React 18 + TypeScript + Vite + Tailwind CSS v3 + shadcn/ui + react-markdown + remark-gfm
+
+## 贡献与许可
+
+- 欢迎通过 Issues 和 PR 贡献。提交更改时请保持变更聚焦并简述目的。
+- 更新文档时请同步维护中英文两份。
 
 ## License
 

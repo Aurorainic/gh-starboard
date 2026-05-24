@@ -3,12 +3,42 @@
 > Turn your GitHub stars into a browsable, searchable, notes page.
 
 > [!IMPORTANT]
-> **All Codes Made by Generative AI**
+> **All Code Made by Generative AI**
 
 > [!NOTE]
 > This project is currently in the early stages of development.
 
 **English** | [简体中文](README_zh-CN.md) | [Live Demo](https://aurorainic.github.io/gh-starboard/)
+
+## Quick overview
+
+- Purpose: Build a static, bilingual site from your GitHub stars with handwritten Markdown notes and optional AI-generated summaries.
+- Data source: GitHub Stars (fetched via API) + `content/stars.md` for user notes
+- Output: Static site in `dist/` (deployable to GitHub Pages, Netlify, Vercel, etc.)
+
+## Table of contents
+
+- [GH-STARBOARD](#gh-starboard)
+  - [Quick overview](#quick-overview)
+  - [Table of contents](#table-of-contents)
+  - [Features](#features)
+  - [Quick start](#quick-start)
+    - [Local development](#local-development)
+  - [Daily usage](#daily-usage)
+  - [Customization](#customization)
+    - [Site title \& languages](#site-title--languages)
+    - [Content structure](#content-structure)
+  - [Deploy](#deploy)
+    - [GitHub Pages](#github-pages)
+    - [Other platforms (Netlify example)](#other-platforms-netlify-example)
+  - [Configuration reference](#configuration-reference)
+  - [AI provider](#ai-provider)
+    - [D1 external cache (recommended)](#d1-external-cache-recommended)
+  - [Data pipeline](#data-pipeline)
+  - [Commands](#commands)
+  - [Tech stack](#tech-stack)
+  - [Contributing](#contributing)
+  - [License](#license)
 
 ## Features
 
@@ -20,7 +50,7 @@
 - **Responsive** — 1-column on mobile, 2-column grid on desktop
 - **D1 Cache** — Cloudflare D1 external cache for AI summaries (recommended), survives CI workspace resets. Falls back to local file if not configured
 
-## Quick Start
+## Quick start
 
 1. **Fork** this repository
 2. **Enable GitHub Actions** in your fork (Settings → Actions → Allow all actions)
@@ -31,7 +61,7 @@
 
 The site will be deployed to GitHub Pages automatically. For other platforms (Cloudflare Pages, Vercel, Netlify, etc.), import your fork and set the same environment variables.
 
-### Local Development
+### Local development
 
 ```bash
 cp .env.example .env.local
@@ -45,7 +75,7 @@ Open `http://localhost:5173` — your stars are ready to browse.
 
 > **Prerequisites**: Node.js 22+ and pnpm.
 
-## Daily Usage
+## Daily usage
 
 Edit `content/stars.md` to organize repos and write notes:
 
@@ -67,7 +97,7 @@ Run `pnpm run all` after editing to rebuild the dataset.
 
 ## Customization
 
-### Site Title & Languages
+### Site title & languages
 
 Edit `.env.local`:
 
@@ -83,7 +113,7 @@ SITE_SUBTITLE={"en":"Bookmark & Note","zh-CN":"收藏即笔记"}
 AI_ENABLED=on
 ```
 
-### Content Structure
+### Content structure
 
 The app auto-detects languages from `SITE_LANGUAGES`. For each language:
 - **AI intro** is generated for every repo
@@ -97,11 +127,27 @@ Build the complete data + frontend in one pass:
 pnpm run all      # fetch stars → AI generate → vite build → dist/
 ```
 
-The `dist/` folder is a static site — deploy to any hosting provider (GitHub Pages, Cloudflare Pages, Vercel, Netlify, etc.).
+The `dist/` folder is a static site — deploy to any hosting provider.
+
+### GitHub Pages
 
 A [GitHub Actions workflow](.github/workflows/deploy.yml) is included for automated builds (push to `main`, daily schedule, or manual trigger). Set the required secrets in your repository settings.
 
-## Configuration Reference
+### Other platforms (Netlify example)
+
+<details>
+<summary>Configuration</summary>
+
+| Setting | Value |
+|---------|-------|
+| Build command | `pnpm run all` |
+| Publish directory | `dist` |
+
+> **Important**: Use `pnpm run all` (not `pnpm run build`) as the build command — it runs the full data pipeline (fetch stars + AI generate) before building the frontend. Also set `GH_TOKEN` and `GH_USERNAME` in Site settings > Environment variables.
+
+</details>
+
+## Configuration reference
 
 | Variable | Required | Description |
 |----------|----------|-------------|
@@ -118,7 +164,7 @@ A [GitHub Actions workflow](.github/workflows/deploy.yml) is included for automa
 | `CLOUDFLARE_ACCOUNT_ID` | Recommended | Cloudflare account ID |
 | `D1_DATABASE_ID` | Recommended | D1 database ID |
 
-## AI Provider
+## AI provider
 
 > [!TIP]
 > AI summaries and user note translation consume API tokens; please choose a cheap model.
@@ -137,7 +183,7 @@ export async function translateText(text, targetLanguage) {
 
 Results are cached incrementally — only new repos trigger API calls. Un-starred repos are auto-pruned from cache. Set `AI_ENABLED=off` to skip AI entirely and fall back to GitHub descriptions.
 
-### D1 External Cache (Recommended)
+### D1 external cache (recommended)
 
 [Cloudflare D1](https://developers.cloudflare.com/d1/) is the recommended cache backend. The build pipeline connects to D1, reads the cache, processes only new/changed repos, and writes the updated cache back. This ensures the cache persists across CI workspace resets — no need to regenerate AI summaries from scratch on every build.
 
@@ -200,7 +246,7 @@ Done. Subsequent `pnpm run all` builds will use D1 automatically.
 
 </details>
 
-## Data Pipeline
+## Data pipeline
 
 ```
 fetch-stars.mjs  ──►  public/data/stars.json
@@ -228,9 +274,14 @@ build-data.mjs            │
 | `pnpm run d1-migrate` | Initialize D1 tables |
 | `pnpm run d1-seed` | Seed D1 from local summaries.json (one-time) |
 
-## Tech Stack
+## Tech stack
 
 React 18 + TypeScript + Vite + Tailwind CSS v3 + shadcn/ui + react-markdown + remark-gfm
+
+## Contributing
+
+- Issues and PRs are welcome. Keep changes focused and include a short description of intent.
+- When updating docs, keep English and Chinese versions aligned.
 
 ## License
 
