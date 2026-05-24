@@ -309,6 +309,7 @@ async function main() {
   }
 
   // ---- AI smart categorization for Uncategorized repos ----
+  const aiCategories = new Set();
   if (aiEnabled && aiAvailable) {
     const existingCats = Array.from(categoriesSet).filter((c) => c !== "Uncategorized");
     const uncategorized = entries.filter((e) => e.category === "Uncategorized");
@@ -326,6 +327,7 @@ async function main() {
           if (suggested && suggested !== "Uncategorized") {
             entry.category = suggested;
             categoriesSet.add(suggested);
+            aiCategories.add(suggested);
             if (!existingCats.includes(suggested)) existingCats.push(suggested);
           }
         } catch (e) {
@@ -408,6 +410,7 @@ async function main() {
     },
     languages,
     uiTranslations,
+    aiCategories: Array.from(aiCategories),
   };
 
   mkdirSync(dirname(OUTPUT), { recursive: true });

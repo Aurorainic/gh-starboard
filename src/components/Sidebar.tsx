@@ -2,15 +2,18 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useT } from "@/i18n/useTranslation";
+import { Bot } from "lucide-react";
 
 interface SidebarProps {
   categories: string[];
+  aiCategories: string[];
   activeCategory: string | null;
   onCategoryClick: (category: string) => void;
 }
 
 export function Sidebar({
   categories,
+  aiCategories,
   activeCategory,
   onCategoryClick,
 }: SidebarProps) {
@@ -31,13 +34,16 @@ export function Sidebar({
                   variant="ghost"
                   size="sm"
                   className={cn(
-                    "w-full justify-start text-sm font-normal",
+                    "w-full justify-start text-sm font-normal gap-1.5",
                     activeCategory === cat &&
                       "bg-accent text-accent-foreground font-medium"
                   )}
                   onClick={() => onCategoryClick(cat)}
                 >
-                  {cat}
+                  <span className="truncate">{cat}</span>
+                  {aiCategories.includes(cat) && (
+                    <Bot className="h-3 w-3 shrink-0 text-muted-foreground" />
+                  )}
                 </Button>
               ))}
             </div>

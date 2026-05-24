@@ -43,6 +43,7 @@ export function useStars(language: Language) {
           siteConfig: { title: {}, subtitle: {}, languages: ["en"], aiEnabled: false, projectUrl: "" },
           languages: ["en"],
           uiTranslations: {},
+          aiCategories: [],
         });
       })
       .finally(() => setLoading(false));
@@ -206,5 +207,6 @@ export function useStars(language: Language) {
     availableLanguages: data?.languages ?? ["en"],
     lastUpdated: data?.lastUpdated ?? "",
     uiTranslations: data?.uiTranslations ?? {},
+    aiCategories: data?.aiCategories ?? [],
   };
 }

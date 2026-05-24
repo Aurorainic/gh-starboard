@@ -38,6 +38,7 @@ export default function App() {
     availableLanguages,
     lastUpdated,
     uiTranslations,
+    aiCategories,
   } = useStars(language);
 
   // Sync available languages from data into context
@@ -169,6 +170,7 @@ export default function App() {
       <div className="flex">
         <Sidebar
           categories={categories}
+          aiCategories={aiCategories}
           activeCategory={activeCategory}
           onCategoryClick={handleCategoryClick}
         />
@@ -221,6 +223,7 @@ export default function App() {
                 category={category}
                 entries={entries}
                 language={language}
+                isAiCategory={aiCategories.includes(category)}
                 onTopicClick={(topic) => setSearchQuery(`topic:${topic}`)}
               />
             ))}
