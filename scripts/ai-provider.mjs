@@ -205,28 +205,52 @@ Rules:
 - Category names: 1-3 words, Title Case, specific and descriptive
 - Avoid vague terms like "Software", "Tools", "Developer Tools", "Utilities"
 - Aim for 15-30 total categories across all repos (group similar repos together)
-- Return ONLY valid JSON, no markdown or explanation
 
-OUTPUT FORMAT (JSON array):
+OUTPUT FORMAT: Return ONLY a valid JSON array, nothing else. No markdown, no explanation, no extra text.
 [{"repo": "owner/repo", "category": "Category Name"}, ...]`;
 
   const userMsg = `${categoryList}\n\nREPOSITORIES:\n${repoList}`;
 
-  const result = await chat(systemPrompt, userMsg, 2000, 0.3);
+  const result = await chat(systemPrompt, userMsg, 4000, 0.3);
 
+  // Aggressive JSON extraction: try multiple strategies
+  let jsonStr = result.trim();
+
+  // Strategy 1: Direct parse
   try {
-    const parsed = JSON.parse(result);
+    const parsed = JSON.parse(jsonStr);
     if (Array.isArray(parsed)) return parsed;
-  } catch {
-    const match = result.match(/\[[\s\S]*\]/);
-    if (match) {
-      try {
-        const parsed = JSON.parse(match[0]);
-        if (Array.isArray(parsed)) return parsed;
-      } catch { /* fall through */ }
-    }
+  } catch { /* continue */ }
+
+  // Strategy 2: Extract from markdown code block
+  const codeBlockMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (codeBlockMatch) {
+    try {
+      const parsed = JSON.parse(codeBlockMatch[1].trim());
+      if (Array.isArray(parsed)) return parsed;
+    } catch { /* continue */ }
   }
-  console.warn("batchSuggestCategories: failed to parse response, skipping batch");
+
+  // Strategy 3: Extract JSON array (greedy)
+  const arrayMatch = jsonStr.match(/\[[\s\S]*\]/);
+  if (arrayMatch) {
+    try {
+      const parsed = JSON.parse(arrayMatch[0]);
+      if (Array.isArray(parsed)) return parsed;
+    } catch { /* continue */ }
+  }
+
+  // Strategy 4: Try to fix common issues (trailing commas, single quotes)
+  const fixed = jsonStr
+    .replace(/,\s*\]/g, "]")
+    .replace(/,\s*\}/g, "}")
+    .replace(/'/g, '"');
+  try {
+    const parsed = JSON.parse(fixed);
+    if (Array.isArray(parsed)) return parsed;
+  } catch { /* continue */ }
+
+  console.warn(`batchSuggestCategories: failed to parse response (first 300 chars: "${result.substring(0, 300)}"), skipping batch`);
   return [];
 }
 

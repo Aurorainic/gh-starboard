@@ -388,7 +388,7 @@ async function main() {
     });
 
     if (toCategorize.length > 0) {
-      const BATCH_SIZE = 30;
+      const BATCH_SIZE = 15;
       console.log(`AI batch categorizing ${toCategorize.length} repo(s) in groups of ${BATCH_SIZE}...`);
       let currentCategories = Array.from(categoriesSet);
 
