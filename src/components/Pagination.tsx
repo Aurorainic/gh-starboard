@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/i18n/useTranslation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -20,6 +21,20 @@ export function Pagination({
   onPerPageChange,
 }: PaginationProps) {
   const { t } = useT();
+  const [pageInput, setPageInput] = useState(String(page));
+
+  useEffect(() => {
+    setPageInput(String(page));
+  }, [page]);
+
+  const handleJump = () => {
+    const n = parseInt(pageInput, 10);
+    if (n >= 1 && n <= totalPages && n !== page) {
+      onPageChange(n);
+    } else {
+      setPageInput(String(page));
+    }
+  };
 
   if (totalPages <= 1) return null;
 
@@ -51,8 +66,19 @@ export function Pagination({
           <ChevronLeft className="h-4 w-4" />
         </Button>
 
-        <span className="min-w-[120px] text-center text-sm text-muted-foreground">
-          {t("pagination.page", { page, total: totalPages })}
+        <span className="flex items-center gap-1 text-sm text-muted-foreground">
+          <span>{t("pagination.pagePrefix")}</span>
+          <input
+            type="number"
+            min={1}
+            max={totalPages}
+            value={pageInput}
+            onChange={(e) => setPageInput(e.target.value)}
+            onBlur={handleJump}
+            onKeyDown={(e) => e.key === "Enter" && handleJump()}
+            className="w-10 h-7 rounded border bg-transparent text-center text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          />
+          <span>{t("pagination.pageSuffix", { total: totalPages })}</span>
         </span>
 
         <Button

@@ -21,6 +21,8 @@ export function StarEntry({ entry, language, onTopicClick }: StarEntryProps) {
   const intro = aiIntro || entry.description;
   const notes = entry.userNotes?.[language] || "";
   const pushedAgo = timeAgo(entry.pushedAt, language, t("time.justNow"));
+  const daysSincePush = Math.floor((Date.now() - new Date(entry.pushedAt).getTime()) / 86400000);
+  const staleClass = daysSincePush >= 365 ? "text-red-500" : daysSincePush >= 180 ? "text-yellow-500" : "";
   const isAiGenerated = !!aiIntro;
   const visibleTopics = topicsExpanded ? entry.topics : entry.topics.slice(0, 5);
   const hiddenCount = entry.topics.length - 5;
@@ -76,7 +78,7 @@ export function StarEntry({ entry, language, onTopicClick }: StarEntryProps) {
             +{hiddenCount}
           </button>
         )}
-        <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
+        <span className={`ml-auto flex items-center gap-1 text-xs ${staleClass || "text-muted-foreground"}`}>
           <Clock className="h-3 w-3" />
           {pushedAgo}
         </span>
