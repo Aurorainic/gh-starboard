@@ -12,34 +12,67 @@ async function chat(systemPrompt, userMessage, maxTokens = 800, temperature = 0.
     throw new Error("AI_API_KEY not set");
   }
 
-  const res = await fetch(`${BASE_URL}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userMessage },
-      ],
-      temperature,
-      max_tokens: maxTokens,
-    }),
-  });
+  const TIMEOUT_MS = 60_000;
+  const MAX_RETRIES = 2;
+  let lastError;
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`API error ${res.status}: ${maskSecret(body)}`);
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    if (attempt > 0) {
+      const delay = Math.min(2000 * Math.pow(2, attempt - 1), 10000);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+    try {
+      const res = await fetch(`${BASE_URL}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userMessage },
+          ],
+          temperature,
+          max_tokens: maxTokens,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timer);
+
+      if (res.status === 429 || res.status >= 500) {
+        lastError = new Error(`API error ${res.status}`);
+        continue;
+      }
+
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`API error ${res.status}: ${maskSecret(body)}`);
+      }
+
+      const data = await res.json();
+      const content = data.choices?.[0]?.message?.content;
+      if (content == null) {
+        throw new Error("API returned null content");
+      }
+      return content.trim();
+    } catch (e) {
+      clearTimeout(timer);
+      if (e.name === "AbortError") {
+        lastError = new Error(`API request timed out after ${TIMEOUT_MS / 1000}s`);
+        continue;
+      }
+      throw e;
+    }
   }
 
-  const data = await res.json();
-  const content = data.choices?.[0]?.message?.content;
-  if (content == null) {
-    throw new Error("API returned null content");
-  }
-  return content.trim();
+  throw lastError || new Error("API request failed after retries");
 }
 
 const LANG_PROMPTS = {

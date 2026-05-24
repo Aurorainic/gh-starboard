@@ -6,6 +6,7 @@ describe("ai-provider", () => {
 
   beforeEach(async () => {
     vi.restoreAllMocks();
+    vi.useFakeTimers();
     process.env.AI_API_KEY = "test-key";
     process.env.AI_API_BASE_URL = "https://api.test.com/v1";
     process.env.AI_MODEL = "test-model";
@@ -14,6 +15,7 @@ describe("ai-provider", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     process.env = { ...originalEnv };
   });
 
@@ -49,18 +51,41 @@ describe("ai-provider", () => {
       ).rejects.toThrow("null content");
     });
 
-    it("throws on API error", async () => {
+    it("throws on non-retryable API error", async () => {
       vi.stubGlobal(
         "fetch",
         vi.fn().mockResolvedValue({
           ok: false,
-          status: 429,
-          text: () => Promise.resolve("rate limited"),
+          status: 401,
+          text: () => Promise.resolve("unauthorized"),
         })
       );
       await expect(
         ai.generateIntro("en", "owner/repo", "desc")
-      ).rejects.toThrow("429");
+      ).rejects.toThrow("401");
+    });
+
+    it("retries on 429 then succeeds", async () => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 429,
+          text: () => Promise.resolve("rate limited"),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              choices: [{ message: { content: "OK after retry" } }],
+            }),
+        });
+      vi.stubGlobal("fetch", fetchMock);
+
+      const promise = ai.generateIntro("en", "owner/repo", "desc");
+      await vi.advanceTimersByTimeAsync(5000);
+      const result = await promise;
+      expect(result).toBe("OK after retry");
     });
   });
 
@@ -197,7 +222,8 @@ describe("ai-provider", () => {
     });
 
     it("retries on failure then succeeds", async () => {
-      const fetchMock = vi.fn()
+      const fetchMock = vi
+        .fn()
         .mockResolvedValueOnce({
           ok: false,
           status: 500,
@@ -212,7 +238,9 @@ describe("ai-provider", () => {
         });
       vi.stubGlobal("fetch", fetchMock);
 
-      const result = await ai.healthCheck(1);
+      const promise = ai.healthCheck(1);
+      await vi.advanceTimersByTimeAsync(20000);
+      const result = await promise;
       expect(result).toBe(true);
       expect(fetchMock).toHaveBeenCalledTimes(2);
     });
@@ -222,8 +250,8 @@ describe("ai-provider", () => {
         "fetch",
         vi.fn().mockResolvedValue({
           ok: false,
-          status: 500,
-          text: () => Promise.resolve("server error"),
+          status: 401,
+          text: () => Promise.resolve("unauthorized"),
         })
       );
       await expect(ai.healthCheck(0)).rejects.toThrow("health check failed");

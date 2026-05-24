@@ -319,7 +319,11 @@ async function main() {
     category: { count: 0, repos: [] },
   };
 
-  for (const star of stars) {
+  for (let idx = 0; idx < stars.length; idx++) {
+    const star = stars[idx];
+    if (aiEnabled && aiAvailable && (idx + 1) % 10 === 0) {
+      console.log(`Processing repo ${idx + 1}/${stars.length}...`);
+    }
     const noteData = notesMap[star.fullName] || {};
     let category = noteData.category || "Uncategorized";
     categoriesSet.add(category);
