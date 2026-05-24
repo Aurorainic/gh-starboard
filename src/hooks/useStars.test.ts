@@ -51,6 +51,7 @@ const mockData: MergedData = {
   siteConfig: { title: {}, subtitle: {}, languages: ["en"], aiEnabled: false, projectUrl: "" },
   languages: ["en"],
   uiTranslations: {},
+  categoryTranslations: {},
   aiCategories: [],
 };
 

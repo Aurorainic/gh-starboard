@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
 import { CategorySection } from "@/components/CategorySection";
@@ -26,7 +26,7 @@ export default function App() {
     entryLanguages,
     maxStarsValue,
     categories,
-    categoryPages,
+    groupedByCategory,
     paginatedCategories,
     page,
     totalPages,
@@ -38,6 +38,7 @@ export default function App() {
     availableLanguages,
     lastUpdated,
     uiTranslations,
+    categoryTranslations,
     aiCategories,
   } = useStars(language);
 
@@ -66,9 +67,7 @@ export default function App() {
     }
   }, [loading, availableLanguages, language, setLanguage]);
 
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
-  const pendingScrollRef = useRef<string | null>(null);
 
   // Show back-to-top button when scrolled down
   useEffect(() => {
@@ -77,52 +76,22 @@ export default function App() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Scroll spy
+  // Scroll to top when category filter changes
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            const cat = entry.target.id.replace("category-", "");
-            setActiveCategory(cat);
-          }
-        }
-      },
-      { rootMargin: "-60px 0px -80% 0px" }
-    );
+    window.scrollTo({ top: 0 });
+  }, [filters.category]);
 
-    const sections = document.querySelectorAll("[id^='category-']");
-    sections.forEach((s) => observer.observe(s));
-    return () => observer.disconnect();
-  }, [paginatedCategories]);
-
-  // Scroll to pending category after page change renders it
-  useEffect(() => {
-    const cat = pendingScrollRef.current;
-    if (!cat) return;
-    const el = document.getElementById(`category-${cat}`);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth" });
-      pendingScrollRef.current = null;
-    }
-  }, [paginatedCategories]);
-
-  const handleCategoryClick = useCallback(
+  const handleCategoryChange = useCallback(
     (cat: string) => {
-      const el = document.getElementById(`category-${cat}`);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth" });
-        return;
-      }
-      // Category not on current page — find which page it's on via categoryPages
-      const targetPage = categoryPages.findIndex((slices) => slices.some((s) => s.category === cat)) + 1;
-      if (targetPage > 0 && targetPage !== page) {
-        pendingScrollRef.current = cat;
-        setPage(targetPage);
-      }
+      setFilters({ ...filters, category: cat });
     },
-    [categoryPages, page, setPage]
+    [filters, setFilters]
   );
+
+  // Category name translation helper
+  function catName(name: string) {
+    return categoryTranslations[language]?.[name] ?? name;
+  }
 
   if (loading) {
     return (
@@ -155,12 +124,9 @@ export default function App() {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onHomeClick={() => { setSearchQuery(""); window.scrollTo({ top: 0 }); }}
-        sortBy={sortBy}
-        onSortChange={setSortBy}
         filters={filters}
         onFiltersChange={setFilters}
         entryLanguages={entryLanguages}
-        maxStarsValue={maxStarsValue}
         totalEntries={totalEntries}
         categoriesCount={categories.length}
         siteConfig={siteConfig}
@@ -168,16 +134,31 @@ export default function App() {
 
       <div className="flex">
         <Sidebar
-          categories={categories}
-          aiCategories={aiCategories}
-          activeCategory={activeCategory}
-          onCategoryClick={handleCategoryClick}
+          categories={categories.map((cat) => ({
+            name: cat,
+            count: (groupedByCategory[cat] ?? []).length,
+            isAi: aiCategories.includes(cat),
+          }))}
+          selectedCategory={filters.category}
+          onCategoryChange={handleCategoryChange}
+          categoryTranslations={categoryTranslations}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          filters={filters}
+          onFiltersChange={setFilters}
+          maxStarsValue={maxStarsValue}
         />
 
         <main className="flex-1 min-w-0 px-4 py-6 lg:px-8">
           {/* Active filter badges */}
-          {(filters.languages.length > 0 || filters.minStars > 0 || filters.maxStars < MAX_STARS_FILTER) && (
+          {(filters.category || filters.languages.length > 0 || filters.minStars > 0 || filters.maxStars < MAX_STARS_FILTER) && (
             <div className="flex flex-wrap items-center gap-2 mb-4">
+              {filters.category && (
+                <Badge variant="secondary" className="gap-1 cursor-pointer" onClick={() => setFilters({ ...filters, category: "" })}>
+                  {catName(filters.category)}
+                  <X className="h-3 w-3" />
+                </Badge>
+              )}
               {filters.languages.map((lang) => (
                 <Badge key={lang} variant="secondary" className="gap-1 cursor-pointer" onClick={() => setFilters({ ...filters, languages: filters.languages.filter((l) => l !== lang) })}>
                   {lang}
@@ -201,14 +182,21 @@ export default function App() {
 
           {/* Mobile category bar */}
           <div className="flex lg:hidden flex-wrap gap-1.5 my-4">
+            <Badge
+              variant={filters.category === "" ? "default" : "secondary"}
+              className="cursor-pointer"
+              onClick={() => handleCategoryChange("")}
+            >
+              {t("sidebar.all")}
+            </Badge>
             {categories.map((cat) => (
               <Badge
                 key={cat}
-                variant={activeCategory === cat ? "default" : "secondary"}
+                variant={filters.category === cat ? "default" : "secondary"}
                 className="cursor-pointer"
-                onClick={() => handleCategoryClick(cat)}
+                onClick={() => handleCategoryChange(cat)}
               >
-                {cat}
+                {catName(cat)}
               </Badge>
             ))}
           </div>
@@ -219,7 +207,7 @@ export default function App() {
             {paginatedCategories.map(({ category, entries }) => (
               <CategorySection
                 key={category}
-                category={category}
+                category={catName(category)}
                 entries={entries}
                 language={language}
                 isAiCategory={aiCategories.includes(category)}

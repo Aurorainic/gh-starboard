@@ -65,6 +65,10 @@ export async function clearSummaries() {
   await d1Query("DELETE FROM summaries");
 }
 
+export async function clearCategoryColumns() {
+  await d1Query("UPDATE summaries SET ai_category = '', ai_category_desc = '', ai_category_ver = 0");
+}
+
 export async function loadSummariesFromD1() {
   const rows = await d1Query(
     "SELECT full_name, ai_intro, user_notes, intro_source, notes_source, ai_category, ai_category_desc, ai_category_ver FROM summaries"

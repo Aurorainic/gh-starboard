@@ -38,6 +38,7 @@
   - [Commands](#commands)
   - [Tech stack](#tech-stack)
   - [Contributing](#contributing)
+  - [Acknowledgments](#acknowledgments)
   - [License](#license)
 
 ## Features
@@ -312,6 +313,10 @@ build-data.mjs            │
 
 - Issues and PRs are welcome. Keep changes focused and include a short description of intent.
 - When updating docs, keep English and Chinese versions aligned.
+
+## Acknowledgments
+
+UI design inspired by [selfh.st.](https://selfh.st/apps/)
 
 ## License
 

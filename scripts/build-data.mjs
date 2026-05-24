@@ -449,7 +449,7 @@ async function main() {
   const categories = Array.from(categoriesSet);
   const totalStars = entries.reduce((sum, e) => sum + e.stargazersCount, 0);
 
-  // ---- AI UI text translation for non-default languages ----
+  // ---- AI translation for non-default languages ----
   const uiSourceTexts = {
     "app.title": "GitHub Stars Notes",
     "app.subtitle": "My GitHub Stars Collection & Notes",
@@ -457,6 +457,7 @@ async function main() {
     "stats.totalStars": "{count} Stars",
     "stats.categories": "{count} Categories",
     "sidebar.toc": "Contents",
+    "sidebar.all": "All",
     "entry.stars": "{count} stars",
     "entry.language": "Language",
     "entry.topics": "Topics",
@@ -489,18 +490,37 @@ async function main() {
     "filter.max": "Max",
   };
 
+  // Add category names to translation batch
+  const categoryPrefix = "category.";
+  for (const cat of categories) {
+    uiSourceTexts[`${categoryPrefix}${cat}`] = cat;
+  }
+
   const DEFAULT_LANG = "en";
   const SKIP_LANGS = new Set([DEFAULT_LANG, "zh-CN"]);
   const uiTranslations = {};
+  const categoryTranslations = {};
 
   if (aiEnabled && aiAvailable) {
     const langsToTranslate = languages.filter((l) => !SKIP_LANGS.has(l));
     for (const lang of langsToTranslate) {
-      console.log(`Translating UI texts to ${lang}...`);
+      console.log(`Translating UI texts + ${categories.length} categories to ${lang}...`);
       try {
-        uiTranslations[lang] = await translateUITexts(uiSourceTexts, lang);
+        const allTranslated = await translateUITexts(uiSourceTexts, lang);
+        // Split UI texts and category translations
+        const uiResult = {};
+        const catResult = {};
+        for (const [key, value] of Object.entries(allTranslated)) {
+          if (key.startsWith(categoryPrefix)) {
+            catResult[key.slice(categoryPrefix.length)] = value;
+          } else {
+            uiResult[key] = value;
+          }
+        }
+        uiTranslations[lang] = uiResult;
+        categoryTranslations[lang] = catResult;
       } catch (e) {
-        console.warn(`UI translation for ${lang} failed: ${e.message}`);
+        console.warn(`Translation for ${lang} failed: ${e.message}`);
       }
     }
   }
@@ -519,6 +539,7 @@ async function main() {
     },
     languages,
     uiTranslations,
+    categoryTranslations,
     aiCategories: Array.from(aiCategories),
   };
 

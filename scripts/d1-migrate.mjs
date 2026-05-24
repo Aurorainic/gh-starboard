@@ -2,7 +2,7 @@ import { readFileSync, existsSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { loadEnv } from "./load-env.mjs";
-import { ensureTables, clearSummaries, saveSummariesToD1, loadSummariesFromD1 } from "./d1-client.mjs";
+import { ensureTables, clearSummaries, clearCategoryColumns, saveSummariesToD1, loadSummariesFromD1 } from "./d1-client.mjs";
 
 loadEnv();
 
@@ -13,10 +13,18 @@ const SUMMARIES_FILE = resolve(ROOT, "content/summaries.json");
 async function main() {
   const seed = process.argv.includes("--seed");
   const clear = process.argv.includes("--clear");
+  const clearCategories = process.argv.includes("--clear-categories");
 
   console.log("Creating D1 tables...");
   await ensureTables();
   console.log("Tables ready.");
+
+  if (clearCategories) {
+    console.log("Clearing category columns from D1...");
+    await clearCategoryColumns();
+    console.log("D1 category columns cleared.");
+    return;
+  }
 
   if (clear) {
     console.log("Clearing all summaries from D1...");
