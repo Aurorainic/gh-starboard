@@ -54,11 +54,12 @@ try {
 
 // ---- AI provider ----
 let aiAvailable = false;
-let generateIntro, translateText, suggestCategory, translateUITexts;
+let generateIntro, generateIntroAndCategory, translateText, suggestCategory, translateUITexts;
 
 try {
   const ai = await import("./ai-provider.mjs");
   generateIntro = ai.generateIntro;
+  generateIntroAndCategory = ai.generateIntroAndCategory;
   translateText = ai.translateText;
   suggestCategory = ai.suggestCategory;
   translateUITexts = ai.translateUITexts;
@@ -209,13 +210,15 @@ async function main() {
   const notesMap = parseStarsMd();
 
   const categoriesSet = new Set();
+  const aiCategories = new Set();
   const entries = [];
+  const AI_CATEGORY_PROMPT_VER = 2; // bump to force re-categorization
 
   let summaryChanged = cacheMigrated;
 
   for (const star of stars) {
     const noteData = notesMap[star.fullName] || {};
-    const category = noteData.category || "Uncategorized";
+    let category = noteData.category || "Uncategorized";
     categoriesSet.add(category);
 
     const userNotesRaw = noteData.notes || "";
@@ -228,17 +231,49 @@ async function main() {
     if (aiEnabled && aiAvailable) {
       // AI intros for each language — invalidate if description changed
       const introSource = `${star.fullName}|${star.description || ""}`;
-      if (cache._introSource !== introSource) {
+      const introInvalidated = cache._introSource !== introSource;
+      if (introInvalidated) {
         cache.aiIntro = {};
+        cache._aiCategory = undefined; // force re-categorization on description change
       }
-      for (const lang of languages) {
+
+      for (let i = 0; i < languages.length; i++) {
+        const lang = languages[i];
         if (!cache.aiIntro[lang]) {
           try {
-            cache.aiIntro[lang] = await generateIntro(
-              lang,
-              star.fullName,
-              star.description
-            );
+            // When auto-categorize is on and this is the first language,
+            // use combined function to get intro + category in one API call
+            if (aiAutoCategory && i === 0) {
+              const existingCats = Array.from(categoriesSet).filter(
+                (c) => c !== "Uncategorized"
+              );
+              const result = await generateIntroAndCategory(
+                lang,
+                star.fullName,
+                star.description,
+                star.topics,
+                star.language,
+                existingCats
+              );
+              cache.aiIntro[lang] = result.intro;
+              if (result.category && result.category !== "Uncategorized") {
+                cache._aiCategory = result.category;
+                cache._aiCategoryDesc = star.description;
+                cache._aiCategoryVer = AI_CATEGORY_PROMPT_VER;
+                // Apply immediately if still Uncategorized
+                if (category === "Uncategorized") {
+                  category = result.category;
+                  categoriesSet.add(result.category);
+                  aiCategories.add(result.category);
+                }
+              }
+            } else {
+              cache.aiIntro[lang] = await generateIntro(
+                lang,
+                star.fullName,
+                star.description
+              );
+            }
             summaryChanged = true;
           } catch (e) {
             console.warn(
@@ -309,8 +344,7 @@ async function main() {
     console.log("Summaries cache updated");
   }
 
-  // ---- AI smart categorization for Uncategorized repos ----
-  const aiCategories = new Set();
+  // ---- AI smart categorization fallback for remaining Uncategorized repos ----
   if (aiAutoCategory && aiAvailable) {
     const existingCats = Array.from(categoriesSet).filter((c) => c !== "Uncategorized");
     const uncategorized = entries.filter((e) => e.category === "Uncategorized");
@@ -318,10 +352,12 @@ async function main() {
     // Filter to only repos that need categorization:
     // - New repos (not in cache) that are Uncategorized
     // - Previously AI-categorized repos whose description changed
+    // - Cached categories from an older prompt version
     const toCategorize = uncategorized.filter((entry) => {
       const cache = summaries[entry.fullName];
       if (!cache) return true; // new repo
       if (!cache._aiCategory) return true; // never AI-categorized
+      if (cache._aiCategoryVer !== AI_CATEGORY_PROMPT_VER) return true; // prompt changed
       if (cache._aiCategoryDesc !== entry.description) return true; // description changed
       // Restore previous AI category
       entry.category = cache._aiCategory;
@@ -349,6 +385,7 @@ async function main() {
             // Track in cache for incremental updates
             summaries[entry.fullName]._aiCategory = suggested;
             summaries[entry.fullName]._aiCategoryDesc = entry.description;
+            summaries[entry.fullName]._aiCategoryVer = AI_CATEGORY_PROMPT_VER;
             summaryChanged = true;
           }
         } catch (e) {
@@ -360,6 +397,12 @@ async function main() {
     }
   } else if (!aiAutoCategory) {
     console.log("AI_AUTO_CATEGORY=off, skipping auto categorization");
+  }
+
+  // Remove empty "Uncategorized" if all repos got categorized
+  if (categoriesSet.has("Uncategorized")) {
+    const hasUncategorized = entries.some((e) => e.category === "Uncategorized");
+    if (!hasUncategorized) categoriesSet.delete("Uncategorized");
   }
 
   const categories = Array.from(categoriesSet);

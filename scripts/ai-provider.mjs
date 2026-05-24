@@ -2,7 +2,7 @@ const BASE_URL = process.env.AI_API_BASE_URL || "https://api.openai.com/v1";
 const API_KEY = process.env.AI_API_KEY;
 const MODEL = process.env.AI_MODEL || "gpt-4o-mini";
 
-async function chat(systemPrompt, userMessage, maxTokens = 800) {
+async function chat(systemPrompt, userMessage, maxTokens = 800, temperature = 0.7) {
   if (!API_KEY) {
     throw new Error("AI_API_KEY not set");
   }
@@ -19,7 +19,7 @@ async function chat(systemPrompt, userMessage, maxTokens = 800) {
         { role: "system", content: systemPrompt },
         { role: "user", content: userMessage },
       ],
-      temperature: 0.7,
+      temperature,
       max_tokens: maxTokens,
     }),
   });
@@ -69,6 +69,58 @@ export async function generateIntro(language, repoName, repoDescription) {
   return chat(systemPrompt, userMsg);
 }
 
+export async function generateIntroAndCategory(
+  language,
+  repoName,
+  repoDescription,
+  repoTopics,
+  repoLanguage,
+  existingCategories
+) {
+  const langPrompt =
+    LANG_PROMPTS[language] ||
+    `Write a 50-100 word summary of the repository in ${language} language. Describe its purpose and key features.`;
+  const categoryList =
+    existingCategories.length > 0
+      ? existingCategories.join(", ")
+      : "No existing categories yet";
+
+  const systemPrompt = `You are a GitHub repository analyst. Do TWO tasks:
+
+TASK 1 — Summary: ${langPrompt}
+
+TASK 2 — Category: Classify the repository into a category.
+Existing categories: ${categoryList}
+Rules:
+- Use an existing category ONLY if it is a genuinely specific match
+- If none fit, create a NEW concise category (1-2 words, Title Case)
+- Aim for granularity (e.g. "React UI Library" not "Software")
+- Use the repo's topics as hints
+
+OUTPUT FORMAT: Return exactly two lines.
+Line 1: The summary text (50-100 words)
+Line 2: Exactly: |||CATEGORY: <category name>
+Nothing else. No markdown, no extra text.`;
+
+  const userMsg = `Repository: ${repoName}\nDescription: ${repoDescription || "None"}\nLanguage: ${repoLanguage || "Unknown"}\nTopics: ${repoTopics?.join(", ") || "None"}`;
+
+  const result = await chat(systemPrompt, userMsg, 800, 0.4);
+
+  // Parse: first line = intro, second line = |||CATEGORY: xxx
+  const lines = result.split("\n").filter((l) => l.trim());
+  let intro = "";
+  let category = "";
+  for (const line of lines) {
+    const catMatch = line.match(/\|\|\|CATEGORY:\s*(.+)/i);
+    if (catMatch) {
+      category = catMatch[1].trim().replace(/^["']|["']$/g, "");
+    } else if (!intro) {
+      intro = line.trim().replace(/^["']|["']$/g, "");
+    }
+  }
+  return { intro: intro || result.split("|||")[0].trim(), category };
+}
+
 export async function translateText(text, targetLanguage, sourceLanguage = "zh-CN") {
   const sourceName = LANG_NAMES[sourceLanguage] || sourceLanguage;
   const targetName = LANG_NAMES[targetLanguage] || targetLanguage;
@@ -80,17 +132,18 @@ export async function suggestCategory(repoName, description, topics, language, e
   const categoryList = existingCategories.length > 0
     ? existingCategories.join(", ")
     : "No existing categories yet";
-  const systemPrompt = `You are a GitHub repository classifier. Given a repo's name, description, programming language, and topics, suggest the best category from the existing list, or create a new concise category name (1-2 words, Title Case) if none fit.
+  const systemPrompt = `You are a GitHub repository classifier. Given a repo's name, description, programming language, and topics, assign it to the most specific fitting category.
 
 Existing categories: ${categoryList}
 
 Rules:
-- Prefer reusing an existing category if it reasonably fits
-- Only create a new category if nothing fits
-- Return ONLY the category name, nothing else
-- Category names should be in English`;
+- Use an existing category ONLY if it is a genuinely specific match (e.g. both are "Machine Learning" tools). Generic overlap is NOT enough.
+- If no existing category is a specific match, create a NEW concise category (1-2 words, Title Case) that accurately describes this repo's domain.
+- Aim for granularity: "React UI Library" is better than "Software". "CLI Tool" is better than "Developer Tools".
+- Use the repo's topics as strong hints for the category name.
+- Return ONLY the category name, nothing else. No quotes, no explanation.`;
   const userMsg = `Repository: ${repoName}\nDescription: ${description || "None"}\nLanguage: ${language || "Unknown"}\nTopics: ${topics?.join(", ") || "None"}`;
-  return chat(systemPrompt, userMsg, 50);
+  return chat(systemPrompt, userMsg, 50, 0.3);
 }
 
 export async function translateUITexts(texts, targetLanguage) {
