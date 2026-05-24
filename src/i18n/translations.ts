@@ -38,6 +38,8 @@ export const translations: Record<string, Record<string, string>> = {
     "error.loadFailed": "数据加载失败",
     "error.retry": "重试",
     "backToTop": "回到顶部",
+    "filter.min": "最小",
+    "filter.max": "最大",
   },
   en: {
     "app.title": "GitHub Stars Notes",
@@ -76,6 +78,8 @@ export const translations: Record<string, Record<string, string>> = {
     "error.loadFailed": "Failed to load data",
     "error.retry": "Retry",
     "backToTop": "Back to top",
+    "filter.min": "Min",
+    "filter.max": "Max",
   },
 };
 
