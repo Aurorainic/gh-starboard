@@ -117,15 +117,19 @@ export async function saveSummariesToD1(summaries) {
     }
   }
 
-  // Remove stale rows no longer in summaries
-  const placeholders = entries.map(() => "?").join(",");
-  const stale = await d1Query(
-    `SELECT full_name FROM summaries WHERE full_name NOT IN (${placeholders})`,
-    entries.map(([name]) => name)
-  );
+  // Remove stale rows no longer in summaries (batch to avoid SQL variable limit)
+  const BATCH = 50;
+  const currentNames = new Set(entries.map(([name]) => name));
+  const allRows = await d1Query("SELECT full_name FROM summaries");
+  const stale = allRows.filter((row) => !currentNames.has(row.full_name));
   if (stale.length > 0) {
-    for (const row of stale) {
-      await d1Query("DELETE FROM summaries WHERE full_name = ?", [row.full_name]);
+    for (let i = 0; i < stale.length; i += BATCH) {
+      const batch = stale.slice(i, i + BATCH);
+      const ph = batch.map(() => "?").join(",");
+      await d1Query(
+        `DELETE FROM summaries WHERE full_name IN (${ph})`,
+        batch.map((r) => r.full_name)
+      );
     }
     console.log(`  D1 pruned ${stale.length} stale row(s)`);
   }
