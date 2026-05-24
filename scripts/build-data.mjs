@@ -230,7 +230,7 @@ async function processRepo(star, cache, notesMap, languages, aiErrors) {
   const introInvalidated = cache._introSource !== introSource;
   if (introInvalidated) {
     cache.aiIntro = {};
-    cache._aiCategory = undefined;
+    // Note: keep _aiCategory — category doesn't need to change when description changes
   }
 
   // Generate intros for all languages in parallel
@@ -284,7 +284,7 @@ async function main() {
   const categoriesSet = new Set();
   const aiCategories = new Set();
   const entries = [];
-  const AI_CATEGORY_PROMPT_VER = 2; // bump to force re-categorization
+  const AI_CATEGORY_PROMPT_VER = 1; // bump to force re-categorization
 
   let summaryChanged = cacheMigrated;
   let aiErrors = {
@@ -380,8 +380,7 @@ async function main() {
       if (!cache) return true;
       if (!cache._aiCategory) return true;
       if (cache._aiCategoryVer !== AI_CATEGORY_PROMPT_VER) return true;
-      if (cache._aiCategoryDesc !== entry.description) return true;
-      // Restore previous AI category
+      // Cache hit — restore previous AI category
       entry.category = cache._aiCategory;
       categoriesSet.add(cache._aiCategory);
       aiCategories.add(cache._aiCategory);
