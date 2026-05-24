@@ -30,6 +30,8 @@ export interface LanguageContextValue {
   setLanguage: (lang: string) => void;
   availableLanguages: string[];
   setAvailableLanguages: (langs: string[]) => void;
+  uiTranslations: Record<string, Record<string, string>>;
+  setUITranslations: (t: Record<string, Record<string, string>>) => void;
 }
 
 export const LanguageContext = createContext<LanguageContextValue>({
@@ -37,12 +39,15 @@ export const LanguageContext = createContext<LanguageContextValue>({
   setLanguage: () => {},
   availableLanguages: [DEFAULT_LANGUAGE],
   setAvailableLanguages: () => {},
+  uiTranslations: {},
+  setUITranslations: () => {},
 });
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [availableLanguages, setAvailableLanguages] = useState<string[]>([
     DEFAULT_LANGUAGE,
   ]);
+  const [uiTranslations, setUITranslations] = useState<Record<string, Record<string, string>>>({});
   const [language, setLanguageState] = useState<string>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) return saved;
@@ -87,6 +92,8 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         setLanguage,
         availableLanguages,
         setAvailableLanguages: handleSetAvailableLanguages,
+        uiTranslations,
+        setUITranslations,
       }}
     >
       {children}

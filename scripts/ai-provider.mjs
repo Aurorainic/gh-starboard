@@ -76,6 +76,46 @@ export async function translateText(text, targetLanguage, sourceLanguage = "zh-C
   return chat(systemPrompt, text);
 }
 
+export async function suggestCategory(repoName, description, topics, language, existingCategories) {
+  const categoryList = existingCategories.length > 0
+    ? existingCategories.join(", ")
+    : "No existing categories yet";
+  const systemPrompt = `You are a GitHub repository classifier. Given a repo's name, description, programming language, and topics, suggest the best category from the existing list, or create a new concise category name (1-2 words, Title Case) if none fit.
+
+Existing categories: ${categoryList}
+
+Rules:
+- Prefer reusing an existing category if it reasonably fits
+- Only create a new category if nothing fits
+- Return ONLY the category name, nothing else
+- Category names should be in English`;
+  const userMsg = `Repository: ${repoName}\nDescription: ${description || "None"}\nLanguage: ${language || "Unknown"}\nTopics: ${topics?.join(", ") || "None"}`;
+  return chat(systemPrompt, userMsg, 50);
+}
+
+export async function translateUITexts(texts, targetLanguage) {
+  const targetName = LANG_NAMES[targetLanguage] || targetLanguage;
+  const entries = Object.entries(texts).map(([key, value]) => `"${key}": "${value}"`);
+  const systemPrompt = `You are a UI text translator. Translate the following key-value pairs from English to ${targetName}. These are UI labels for a web application.
+
+Rules:
+- Preserve the exact key names
+- Keep {variable} placeholders intact (e.g. {count}, {page}, {total}, {time}, {link})
+- Translate only the values
+- Return valid JSON format: {"key": "translated value", ...}
+- Return ONLY the JSON, no explanations or markdown code blocks`;
+  const userMsg = `{\n${entries.join(",\n")}\n}`;
+  const result = await chat(systemPrompt, userMsg, 2000);
+  try {
+    return JSON.parse(result);
+  } catch {
+    // Try extracting JSON from response
+    const match = result.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw new Error("Failed to parse UI translation response as JSON");
+  }
+}
+
 export async function healthCheck(retries = 2) {
   const systemPrompt = "Reply with exactly the word READY and nothing else.";
   for (let i = 0; i <= retries; i++) {

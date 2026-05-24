@@ -50,6 +50,7 @@ const mockData: MergedData = {
   lastUpdated: "2025-06-01T00:00:00Z",
   siteConfig: { title: {}, subtitle: {}, languages: ["en"], aiEnabled: false, projectUrl: "" },
   languages: ["en"],
+  uiTranslations: {},
 };
 
 function mockFetch(data: MergedData = mockData) {

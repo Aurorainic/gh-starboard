@@ -12,7 +12,7 @@ import { useT } from "@/i18n/useTranslation";
 import { Loader2, AlertCircle, ChevronUp, X } from "lucide-react";
 
 export default function App() {
-  const { language, setLanguage, setAvailableLanguages } = useLanguage();
+  const { language, setLanguage, setAvailableLanguages, setUITranslations } = useLanguage();
   const { t } = useT();
   const {
     loading,
@@ -37,6 +37,7 @@ export default function App() {
     siteConfig,
     availableLanguages,
     lastUpdated,
+    uiTranslations,
   } = useStars(language);
 
   // Sync available languages from data into context
@@ -45,6 +46,13 @@ export default function App() {
       setAvailableLanguages(availableLanguages);
     }
   }, [availableLanguages, setAvailableLanguages]);
+
+  // Sync AI-translated UI texts into context
+  useEffect(() => {
+    if (Object.keys(uiTranslations).length > 0) {
+      setUITranslations(uiTranslations);
+    }
+  }, [uiTranslations, setUITranslations]);
 
   // Correct language only after data has loaded
   useEffect(() => {
