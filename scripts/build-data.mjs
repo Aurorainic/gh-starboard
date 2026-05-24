@@ -202,102 +202,99 @@ function parseStarsMd() {
   return categoryMap;
 }
 
-// ---- Categorization helpers ----
-
-async function processIntroAndCategory(
-  star,
-  cache,
-  languages,
-  aiAutoCategory,
-  generateIntroAndCategory,
-  generateIntro,
-  AI_CATEGORY_PROMPT_VER
-) {
-  const aiErrors = { intro: 0, category: 0 };
-  let categoryApplied = null;
-
-  for (let i = 0; i < languages.length; i++) {
-    const lang = languages[i];
-    if (!cache.aiIntro[lang]) {
-      try {
-        if (aiAutoCategory && i === 0) {
-          const result = await generateIntroAndCategory(
-            lang,
-            star.fullName,
-            star.description,
-            star.topics,
-            star.language
-          );
-          cache.aiIntro[lang] = result.intro;
-          if (result.category && result.category !== "Uncategorized") {
-            cache._aiCategory = result.category;
-            cache._aiCategoryDesc = star.description;
-            cache._aiCategoryVer = AI_CATEGORY_PROMPT_VER;
-            categoryApplied = result.category;
-          }
-        } else {
-          cache.aiIntro[lang] = await generateIntro(
-            lang,
-            star.fullName,
-            star.description
-          );
-        }
-      } catch (e) {
-        aiErrors.intro++;
-        console.warn(
-          `AI intro [${lang}] failed for ${star.fullName}: ${e.message}`
-        );
-      }
+// ---- Concurrency helper ----
+async function pMap(items, fn, concurrency) {
+  const results = [];
+  let i = 0;
+  async function worker() {
+    while (i < items.length) {
+      const idx = i++;
+      results[idx] = await fn(items[idx], idx);
     }
   }
-
-  return { categoryApplied, aiErrors };
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => worker()));
+  return results;
 }
 
-async function categorizeUncategorized(
-  entries,
-  summaries,
-  suggestCategory,
-  AI_CATEGORY_PROMPT_VER
-) {
-  const aiErrors = { category: 0 };
-  const categorized = [];
+// ---- Per-repo AI processing (runs concurrently) ----
 
-  const toCategorize = entries.filter((entry) => {
-    const cache = summaries[entry.fullName];
-    if (!cache) return true;
-    if (!cache._aiCategory) return true;
-    if (cache._aiCategoryVer !== AI_CATEGORY_PROMPT_VER) return true;
-    if (cache._aiCategoryDesc !== entry.description) return true;
-    entry.category = cache._aiCategory;
-    return false;
-  });
+async function processRepo(star, cache, notesMap, languages, aiAutoCategory, AI_CATEGORY_PROMPT_VER, aiErrors) {
+  const noteData = notesMap[star.fullName] || {};
+  let category = noteData.category || "Uncategorized";
+  const userNotesRaw = noteData.notes || "";
 
-  for (const entry of toCategorize) {
+  const ZH_VARIANTS = ["zh-CN", "zh-TW", "zh-HK", "zh-Hans", "zh-Hant", "zh"];
+  const notesSourceLang = ZH_VARIANTS.find((z) => languages.includes(z)) || languages[0] || "zh-CN";
+
+  // AI intros for each language — invalidate if description changed
+  const introSource = `${star.fullName}|${star.description || ""}`;
+  const introInvalidated = cache._introSource !== introSource;
+  if (introInvalidated) {
+    cache.aiIntro = {};
+    cache._aiCategory = undefined;
+  }
+
+  // Generate intros for all languages in parallel
+  const introPromises = languages.map(async (lang, i) => {
+    if (cache.aiIntro[lang]) return;
     try {
-      const suggested = await suggestCategory(
-        entry.fullName,
-        entry.description,
-        entry.topics,
-        entry.language
-      );
-      if (suggested && suggested !== "Uncategorized") {
-        entry.category = suggested;
-        categorized.push(entry.fullName);
-        if (!summaries[entry.fullName]) {
-          summaries[entry.fullName] = { aiIntro: {}, userNotes: {} };
-        }
-        summaries[entry.fullName]._aiCategory = suggested;
-        summaries[entry.fullName]._aiCategoryDesc = entry.description;
-        summaries[entry.fullName]._aiCategoryVer = AI_CATEGORY_PROMPT_VER;
+      if (aiAutoCategory && i === 0) {
+        const result = await generateIntroAndCategory(
+          lang, star.fullName, star.description, star.topics, star.language
+        );
+        cache.aiIntro[lang] = result.intro;
+        return { type: "category", category: result.category };
+      } else {
+        cache.aiIntro[lang] = await generateIntro(lang, star.fullName, star.description);
       }
     } catch (e) {
-      aiErrors.category++;
-      console.warn(`AI categorize failed for ${entry.fullName}: ${e.message}`);
+      aiErrors.intro.count++;
+      aiErrors.intro.repos.push({ repo: star.fullName, lang, error: e.message });
+      console.warn(`AI intro [${lang}] failed for ${star.fullName}: ${e.message}`);
+    }
+  });
+
+  const introResults = await Promise.all(introPromises);
+  cache._introSource = introSource;
+
+  // Apply category from first language result
+  for (const r of introResults) {
+    if (r?.type === "category" && r.category && r.category !== "Uncategorized") {
+      cache._aiCategory = r.category;
+      cache._aiCategoryDesc = star.description;
+      cache._aiCategoryVer = AI_CATEGORY_PROMPT_VER;
+      if (category === "Uncategorized") {
+        category = r.category;
+      }
     }
   }
 
-  return { categorized, aiErrors };
+  // Store raw notes under the detected source language
+  if (languages.includes(notesSourceLang)) {
+    cache.userNotes[notesSourceLang] = userNotesRaw;
+  }
+
+  // Translate notes to other languages in parallel
+  const translatePromises = languages.map(async (lang) => {
+    if (lang === notesSourceLang) return;
+    if (cache._notesSource !== userNotesRaw) {
+      cache.userNotes[lang] = "";
+    }
+    if (!cache.userNotes[lang] && userNotesRaw) {
+      try {
+        cache.userNotes[lang] = await translateText(userNotesRaw, lang, notesSourceLang);
+      } catch (e) {
+        aiErrors.translate.count++;
+        aiErrors.translate.repos.push({ repo: star.fullName, lang, error: e.message });
+        console.warn(`Notes translate [${lang}] failed for ${star.fullName}: ${e.message}`);
+      }
+    }
+  });
+
+  await Promise.all(translatePromises);
+  cache._notesSource = userNotesRaw;
+
+  return { category };
 }
 
 // ---- Main pipeline ----
@@ -319,105 +316,52 @@ async function main() {
     category: { count: 0, repos: [] },
   };
 
-  for (let idx = 0; idx < stars.length; idx++) {
-    const star = stars[idx];
-    if (aiEnabled && aiAvailable && (idx + 1) % 10 === 0) {
-      console.log(`Processing repo ${idx + 1}/${stars.length}...`);
+  const CONCURRENCY = Number(process.env.AI_CONCURRENCY) || 3;
+  let processed = 0;
+
+  // Pre-initialize caches so concurrent workers don't race on summaries[fullName]
+  for (const star of stars) {
+    if (!summaries[star.fullName]) {
+      summaries[star.fullName] = { aiIntro: {}, userNotes: {} };
     }
+  }
+
+  if (aiEnabled && aiAvailable) {
+    console.log(`Processing ${stars.length} repos (concurrency=${CONCURRENCY})...`);
+    await pMap(stars, async (star) => {
+      const cache = summaries[star.fullName];
+      const { category } = await processRepo(
+        star, cache, notesMap, languages, aiAutoCategory, AI_CATEGORY_PROMPT_VER, aiErrors
+      );
+      processed++;
+      if (processed % 10 === 0) {
+        console.log(`  ${processed}/${stars.length} repos processed`);
+      }
+    }, CONCURRENCY);
+    console.log(`  ${stars.length}/${stars.length} repos processed`);
+    summaryChanged = true;
+  }
+
+  // Build entries (always, even if AI disabled)
+  for (const star of stars) {
     const noteData = notesMap[star.fullName] || {};
     let category = noteData.category || "Uncategorized";
     categoriesSet.add(category);
 
-    const userNotesRaw = noteData.notes || "";
     const cache = summaries[star.fullName] || { aiIntro: {}, userNotes: {} };
 
-    // Priority order for detecting Chinese source language from available languages
-    const ZH_VARIANTS = ["zh-CN", "zh-TW", "zh-HK", "zh-Hans", "zh-Hant", "zh"];
-    const notesSourceLang = ZH_VARIANTS.find((z) => languages.includes(z)) || languages[0] || "zh-CN";
+    if (aiEnabled && aiAvailable && cache._aiCategory && cache._aiCategoryVer === AI_CATEGORY_PROMPT_VER && category === "Uncategorized") {
+      category = cache._aiCategory;
+      categoriesSet.add(category);
+      aiCategories.add(category);
+    }
 
-    if (aiEnabled && aiAvailable) {
-      // AI intros for each language — invalidate if description changed
-      const introSource = `${star.fullName}|${star.description || ""}`;
-      const introInvalidated = cache._introSource !== introSource;
-      if (introInvalidated) {
-        cache.aiIntro = {};
-        cache._aiCategory = undefined; // force re-categorization on description change
-      }
-
-      for (let i = 0; i < languages.length; i++) {
-        const lang = languages[i];
-        if (!cache.aiIntro[lang]) {
-          try {
-            // When auto-categorize is on and this is the first language,
-            // use combined function to get intro + category in one API call
-            if (aiAutoCategory && i === 0) {
-              const result = await generateIntroAndCategory(
-                lang,
-                star.fullName,
-                star.description,
-                star.topics,
-                star.language
-              );
-              cache.aiIntro[lang] = result.intro;
-              if (result.category && result.category !== "Uncategorized") {
-                cache._aiCategory = result.category;
-                cache._aiCategoryDesc = star.description;
-                cache._aiCategoryVer = AI_CATEGORY_PROMPT_VER;
-                // Apply immediately if still Uncategorized
-                if (category === "Uncategorized") {
-                  category = result.category;
-                  categoriesSet.add(result.category);
-                  aiCategories.add(result.category);
-                }
-              }
-            } else {
-              cache.aiIntro[lang] = await generateIntro(
-                lang,
-                star.fullName,
-                star.description
-              );
-            }
-            summaryChanged = true;
-          } catch (e) {
-            aiErrors.intro.count++;
-            aiErrors.intro.repos.push({ repo: star.fullName, lang, error: e.message });
-            console.warn(
-              `AI intro [${lang}] failed for ${star.fullName}: ${e.message}`
-            );
-          }
-        }
-      }
-      cache._introSource = introSource;
-
-      // Store raw notes under the detected source language
+    // Store raw notes when AI is disabled
+    if (!aiEnabled || !aiAvailable) {
+      const ZH_VARIANTS = ["zh-CN", "zh-TW", "zh-HK", "zh-Hans", "zh-Hant", "zh"];
+      const notesSourceLang = ZH_VARIANTS.find((z) => languages.includes(z)) || languages[0] || "zh-CN";
       if (languages.includes(notesSourceLang)) {
-        cache.userNotes[notesSourceLang] = userNotesRaw;
-      }
-
-      for (const lang of languages) {
-        if (lang === notesSourceLang) continue;
-        // Invalidate stale translation if source changed
-        if (cache._notesSource !== userNotesRaw) {
-          cache.userNotes[lang] = "";
-        }
-        if (!cache.userNotes[lang] && userNotesRaw) {
-          try {
-            cache.userNotes[lang] = await translateText(userNotesRaw, lang, notesSourceLang);
-            summaryChanged = true;
-          } catch (e) {
-            aiErrors.translate.count++;
-            aiErrors.translate.repos.push({ repo: star.fullName, lang, error: e.message });
-            console.warn(
-              `Notes translate [${lang}] failed for ${star.fullName}: ${e.message}`
-            );
-          }
-        }
-      }
-      cache._notesSource = userNotesRaw;
-    } else {
-      // AI disabled: store raw notes under detected source language
-      if (languages.includes(notesSourceLang)) {
-        cache.userNotes[notesSourceLang] = userNotesRaw;
+        cache.userNotes[notesSourceLang] = noteData.notes || "";
       }
     }
 
@@ -474,19 +418,15 @@ async function main() {
 
     if (toCategorize.length > 0) {
       console.log(`AI categorizing ${toCategorize.length} new/changed uncategorized repo(s)...`);
-      for (const entry of toCategorize) {
+      await pMap(toCategorize, async (entry) => {
         try {
           const suggested = await suggestCategory(
-            entry.fullName,
-            entry.description,
-            entry.topics,
-            entry.language
+            entry.fullName, entry.description, entry.topics, entry.language
           );
           if (suggested && suggested !== "Uncategorized") {
             entry.category = suggested;
             categoriesSet.add(suggested);
             aiCategories.add(suggested);
-            // Track in cache for incremental updates
             if (!summaries[entry.fullName]) summaries[entry.fullName] = { aiIntro: {}, userNotes: {} };
             summaries[entry.fullName]._aiCategory = suggested;
             summaries[entry.fullName]._aiCategoryDesc = entry.description;
@@ -498,7 +438,7 @@ async function main() {
           aiErrors.category.repos.push({ repo: entry.fullName, error: e.message });
           console.warn(`AI categorize failed for ${entry.fullName}: ${e.message}`);
         }
-      }
+      }, CONCURRENCY);
     } else {
       console.log("No new uncategorized repos to categorize");
     }

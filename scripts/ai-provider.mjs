@@ -12,7 +12,7 @@ async function chat(systemPrompt, userMessage, maxTokens = 800, temperature = 0.
     throw new Error("AI_API_KEY not set");
   }
 
-  const TIMEOUT_MS = 60_000;
+  const TIMEOUT_MS = 30_000;
   const MAX_RETRIES = 2;
   let lastError;
 
