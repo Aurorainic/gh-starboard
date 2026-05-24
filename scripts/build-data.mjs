@@ -476,7 +476,7 @@ async function main() {
   const categories = Array.from(categoriesSet);
   const totalStars = entries.reduce((sum, e) => sum + e.stargazersCount, 0);
 
-  // ---- AI translation for non-default languages ----
+  // ---- Generate i18n files ----
   const uiSourceTexts = {
     "app.title": "GitHub Stars Notes",
     "app.subtitle": "My GitHub Stars Collection & Notes",
@@ -485,6 +485,11 @@ async function main() {
     "stats.categories": "{count} Categories",
     "sidebar.toc": "Contents",
     "sidebar.all": "All",
+    "sidebar.selected": "selected",
+    "sidebar.clearAll": "Clear all",
+    "sidebar.sort": "Sort",
+    "sidebar.stars": "Stars",
+    "sidebar.languages": "Languages",
     "entry.stars": "{count} stars",
     "entry.language": "Language",
     "entry.topics": "Topics",
@@ -517,39 +522,103 @@ async function main() {
     "filter.max": "Max",
   };
 
-  // Add category names to translation batch
-  const categoryPrefix = "category.";
-  for (const cat of categories) {
-    uiSourceTexts[`${categoryPrefix}${cat}`] = cat;
+  // Load category translations from D1 cache
+  const categoryTranslationsCache = {};
+  if (d1) {
+    try {
+      const rows = await d1.d1Query("SELECT category_name, translations FROM category_translations");
+      for (const row of rows) {
+        categoryTranslationsCache[row.category_name] = JSON.parse(row.translations);
+      }
+      console.log(`Loaded ${Object.keys(categoryTranslationsCache).length} category translations from D1`);
+    } catch (e) {
+      console.warn(`Failed to load category translations from D1: ${e.message}`);
+    }
   }
 
-  const DEFAULT_LANG = "en";
-  const SKIP_LANGS = new Set([DEFAULT_LANG]);
-  const uiTranslations = {};
+  // Translate categories incrementally
   const categoryTranslations = {};
+  for (const lang of languages) {
+    categoryTranslations[lang] = {};
+  }
 
   if (aiEnabled && aiAvailable) {
-    const langsToTranslate = languages.filter((l) => !SKIP_LANGS.has(l));
-    for (const lang of langsToTranslate) {
-      console.log(`Translating UI texts + ${categories.length} categories to ${lang}...`);
-      try {
-        const allTranslated = await translateUITexts(uiSourceTexts, lang);
-        // Split UI texts and category translations
-        const uiResult = {};
-        const catResult = {};
-        for (const [key, value] of Object.entries(allTranslated)) {
-          if (key.startsWith(categoryPrefix)) {
-            catResult[key.slice(categoryPrefix.length)] = value;
-          } else {
-            uiResult[key] = value;
-          }
+    const langsToTranslate = languages.filter((l) => l !== "en");
+    const newTranslations = {};
+
+    for (const cat of categories) {
+      const cached = categoryTranslationsCache[cat] || {};
+      for (const lang of langsToTranslate) {
+        if (cached[lang]) {
+          categoryTranslations[lang][cat] = cached[lang];
+        } else {
+          if (!newTranslations[lang]) newTranslations[lang] = [];
+          newTranslations[lang].push(cat);
         }
-        uiTranslations[lang] = uiResult;
-        categoryTranslations[lang] = catResult;
-      } catch (e) {
-        console.warn(`Translation for ${lang} failed: ${e.message}`);
       }
     }
+
+    // Translate new categories one by one
+    for (const lang of langsToTranslate) {
+      const toTranslate = newTranslations[lang] || [];
+      if (toTranslate.length > 0) {
+        console.log(`Translating ${toTranslate.length} new categories to ${lang}...`);
+        for (const cat of toTranslate) {
+          try {
+            const translated = await translateText(cat, lang, "en");
+            categoryTranslations[lang][cat] = translated;
+            if (!categoryTranslationsCache[cat]) categoryTranslationsCache[cat] = {};
+            categoryTranslationsCache[cat][lang] = translated;
+          } catch (e) {
+            console.warn(`  Failed to translate "${cat}" to ${lang}: ${e.message}`);
+            categoryTranslations[lang][cat] = cat; // fallback to English
+          }
+        }
+      }
+    }
+
+    // Save updated category translations to D1
+    if (d1 && Object.keys(categoryTranslationsCache).length > 0) {
+      try {
+        await d1.d1Query("CREATE TABLE IF NOT EXISTS category_translations (category_name TEXT PRIMARY KEY, translations TEXT)");
+        for (const [cat, translations] of Object.entries(categoryTranslationsCache)) {
+          await d1.d1Query(
+            "INSERT OR REPLACE INTO category_translations (category_name, translations) VALUES (?, ?)",
+            [cat, JSON.stringify(translations)]
+          );
+        }
+        console.log(`Saved ${Object.keys(categoryTranslationsCache).length} category translations to D1`);
+      } catch (e) {
+        console.warn(`Failed to save category translations to D1: ${e.message}`);
+      }
+    }
+  }
+
+  // Generate i18n files
+  const I18N_DIR = resolve(ROOT, "public/i18n");
+  mkdirSync(I18N_DIR, { recursive: true });
+
+  for (const lang of languages) {
+    const i18nData = { ...uiSourceTexts };
+
+    // Add category translations
+    for (const cat of categories) {
+      i18nData[`category.${cat}`] = categoryTranslations[lang]?.[cat] || cat;
+    }
+
+    // Translate UI texts for non-English languages
+    if (lang !== "en" && aiEnabled && aiAvailable) {
+      try {
+        console.log(`Translating UI texts to ${lang}...`);
+        const translated = await translateUITexts(uiSourceTexts, lang);
+        Object.assign(i18nData, translated);
+      } catch (e) {
+        console.warn(`UI translation for ${lang} failed: ${e.message}`);
+      }
+    }
+
+    writeFileSync(resolve(I18N_DIR, `${lang}.json`), JSON.stringify(i18nData, null, 2), "utf-8");
+    console.log(`Generated i18n/${lang}.json`);
   }
 
   const merged = {
@@ -565,8 +634,6 @@ async function main() {
       projectUrl: process.env.PROJECT_URL || "",
     },
     languages,
-    uiTranslations,
-    categoryTranslations,
     aiCategories: Array.from(aiCategories),
   };
 

@@ -27,6 +27,8 @@ async function d1Query(sql, params = []) {
   return json.result?.[0]?.results ?? [];
 }
 
+export { d1Query };
+
 async function d1Batch(queries) {
   for (const q of queries) {
     await d1Query(q.sql, q.params);

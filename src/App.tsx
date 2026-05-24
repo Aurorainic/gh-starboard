@@ -12,7 +12,7 @@ import { useT } from "@/i18n/useTranslation";
 import { Loader2, AlertCircle, ChevronUp, X } from "lucide-react";
 
 export default function App() {
-  const { language, setLanguage, setAvailableLanguages, setUITranslations } = useLanguage();
+  const { language, setLanguage, setAvailableLanguages } = useLanguage();
   const { t } = useT();
   const {
     loading,
@@ -37,8 +37,6 @@ export default function App() {
     siteConfig,
     availableLanguages,
     lastUpdated,
-    uiTranslations,
-    categoryTranslations,
     aiCategories,
   } = useStars(language);
 
@@ -48,13 +46,6 @@ export default function App() {
       setAvailableLanguages(availableLanguages);
     }
   }, [availableLanguages, setAvailableLanguages]);
-
-  // Sync AI-translated UI texts into context
-  useEffect(() => {
-    if (Object.keys(uiTranslations).length > 0) {
-      setUITranslations(uiTranslations);
-    }
-  }, [uiTranslations, setUITranslations]);
 
   // Correct language only after data has loaded
   useEffect(() => {
@@ -90,7 +81,7 @@ export default function App() {
 
   // Category name translation helper
   function catName(name: string) {
-    return categoryTranslations[language]?.[name] ?? name;
+    return t(`category.${name}`) || name;
   }
 
   if (loading) {
@@ -140,7 +131,6 @@ export default function App() {
           }))}
           selectedCategories={filters.categories}
           onCategoriesChange={handleCategoriesChange}
-          categoryTranslations={categoryTranslations}
           sortBy={sortBy}
           onSortChange={setSortBy}
           filters={filters}

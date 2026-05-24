@@ -27,8 +27,6 @@ export interface MergedData {
   lastUpdated: string;
   siteConfig: SiteConfig;
   languages: string[];
-  uiTranslations: Record<string, Record<string, string>>;
-  categoryTranslations: Record<string, Record<string, string>>;
   aiCategories: string[];
 }
 

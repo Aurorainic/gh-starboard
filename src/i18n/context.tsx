@@ -58,8 +58,7 @@ export interface LanguageContextValue {
   setLanguage: (lang: string) => void;
   availableLanguages: string[];
   setAvailableLanguages: (langs: string[]) => void;
-  uiTranslations: Record<string, Record<string, string>>;
-  setUITranslations: (t: Record<string, Record<string, string>>) => void;
+  i18nData: Record<string, string>;
 }
 
 export const LanguageContext = createContext<LanguageContextValue>({
@@ -67,15 +66,14 @@ export const LanguageContext = createContext<LanguageContextValue>({
   setLanguage: () => {},
   availableLanguages: [DEFAULT_LANGUAGE],
   setAvailableLanguages: () => {},
-  uiTranslations: {},
-  setUITranslations: () => {},
+  i18nData: {},
 });
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [availableLanguages, setAvailableLanguages] = useState<string[]>([
     DEFAULT_LANGUAGE,
   ]);
-  const [uiTranslations, setUITranslations] = useState<Record<string, Record<string, string>>>({});
+  const [i18nData, setI18nData] = useState<Record<string, string>>({});
   const [language, setLanguageState] = useState<string>(() => {
     const saved = safeGetStorage(STORAGE_KEY);
     if (saved) return saved;
@@ -87,9 +85,22 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (userChoseRef.current) {
-      safeSetStorage(STORAGE_KEY,language);
+      safeSetStorage(STORAGE_KEY, language);
     }
   }, [language]);
+
+  // Load i18n file when language changes
+  useEffect(() => {
+    if (!availableLanguages.includes(language)) return;
+
+    fetch(`/i18n/${language}.json`)
+      .then((res) => res.json())
+      .then((data) => setI18nData(data))
+      .catch((err) => {
+        console.warn(`Failed to load i18n/${language}.json:`, err);
+        setI18nData({});
+      });
+  }, [language, availableLanguages]);
 
   const setLanguage = useCallback((lang: string) => {
     userChoseRef.current = true;
@@ -105,7 +116,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         const matched = matchBrowserLanguage(langs);
         if (matched) {
           setLanguageState(matched);
-          safeSetStorage(STORAGE_KEY,matched);
+          safeSetStorage(STORAGE_KEY, matched);
           userChoseRef.current = true;
         }
       }
@@ -120,8 +131,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         setLanguage,
         availableLanguages,
         setAvailableLanguages: handleSetAvailableLanguages,
-        uiTranslations,
-        setUITranslations,
+        i18nData,
       }}
     >
       {children}

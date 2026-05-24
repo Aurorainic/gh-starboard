@@ -24,7 +24,6 @@ interface SidebarProps {
   categories: CategoryCount[];
   selectedCategories: string[];
   onCategoriesChange: (categories: string[]) => void;
-  categoryTranslations: Record<string, Record<string, string>>;
   sortBy: SortKey;
   onSortChange: (key: SortKey) => void;
   filters: Filters;
@@ -37,7 +36,6 @@ export function Sidebar({
   categories,
   selectedCategories,
   onCategoriesChange,
-  categoryTranslations,
   sortBy,
   onSortChange,
   filters,
@@ -45,11 +43,11 @@ export function Sidebar({
   maxStarsValue,
   entryLanguages,
 }: SidebarProps) {
-  const { t, language } = useT();
+  const { t } = useT();
   const [langExpanded, setLangExpanded] = useState(false);
 
   function catName(name: string) {
-    return categoryTranslations[language]?.[name] ?? name;
+    return t(`category.${name}`) || name;
   }
 
   const sortOptions: { key: SortKey; label: string }[] = [

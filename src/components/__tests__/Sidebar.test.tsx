@@ -1,8 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Sidebar } from "@/components/Sidebar";
-import { LanguageProvider } from "@/i18n/context";
+import { LanguageProvider, LanguageContext } from "@/i18n/context";
 import { type SortKey, type Filters } from "@/hooks/useStars";
 
 interface CategoryCount {
@@ -15,7 +15,6 @@ interface SidebarTestProps {
   categories: CategoryCount[];
   selectedCategories: string[];
   onCategoriesChange: (categories: string[]) => void;
-  categoryTranslations: Record<string, Record<string, string>>;
   sortBy: SortKey;
   onSortChange: (key: SortKey) => void;
   filters: Filters;
@@ -33,7 +32,6 @@ function renderSidebar(props: Partial<SidebarTestProps> = {}) {
     ],
     selectedCategories: [],
     onCategoriesChange: vi.fn(),
-    categoryTranslations: {},
     sortBy: "starred",
     onSortChange: vi.fn(),
     filters: { languages: [], minStars: 0, maxStars: Number.MAX_SAFE_INTEGER, categories: [] },
@@ -41,10 +39,33 @@ function renderSidebar(props: Partial<SidebarTestProps> = {}) {
     maxStarsValue: 1000,
     entryLanguages: ["JavaScript", "Python", "TypeScript"],
   };
+
+  const mockI18nData = {
+    "category.Tools": "Tools",
+    "category.Libraries": "Libraries",
+    "category.AI Generated": "AI Generated",
+    "sidebar.all": "All",
+    "sidebar.sort": "Sort",
+    "sidebar.stars": "Stars",
+    "sidebar.languages": "Languages",
+    "sort.starred": "Star order",
+    "sort.stars": "By stars",
+    "sort.updated": "By updated",
+    "sort.name": "By name",
+  };
+
   return render(
-    <LanguageProvider>
+    <LanguageContext.Provider
+      value={{
+        language: "en",
+        setLanguage: vi.fn(),
+        availableLanguages: ["en"],
+        setAvailableLanguages: vi.fn(),
+        i18nData: mockI18nData,
+      }}
+    >
       <Sidebar {...defaults} {...props} />
-    </LanguageProvider>
+    </LanguageContext.Provider>
   );
 }
 
