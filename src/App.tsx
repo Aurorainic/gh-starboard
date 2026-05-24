@@ -24,6 +24,7 @@ export default function App() {
     filters,
     setFilters,
     entryLanguages,
+    maxStarsValue,
     categories,
     groupedByCategory,
     paginatedCategories,
@@ -151,6 +152,7 @@ export default function App() {
         filters={filters}
         onFiltersChange={setFilters}
         entryLanguages={entryLanguages}
+        maxStarsValue={maxStarsValue}
         totalEntries={totalEntries}
         categoriesCount={categories.length}
         siteConfig={siteConfig}

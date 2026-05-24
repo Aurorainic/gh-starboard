@@ -168,6 +168,11 @@ export function useStars(language: Language) {
     return [...new Set(data.entries.map((e) => e.language).filter(Boolean))].sort();
   }, [data]);
 
+  const maxStarsValue = useMemo(() => {
+    if (!data) return 0;
+    return Math.max(...data.entries.map((e) => e.stargazersCount), 0);
+  }, [data]);
+
   return {
     loading,
     error,
@@ -178,6 +183,7 @@ export function useStars(language: Language) {
     filters,
     setFilters,
     entryLanguages,
+    maxStarsValue,
     filteredEntries,
     groupedByCategory,
     categories,
