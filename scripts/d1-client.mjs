@@ -61,31 +61,44 @@ export async function loadSummariesFromD1() {
 
 export async function saveSummariesToD1(summaries) {
   const now = new Date().toISOString();
-
-  await d1Query("DELETE FROM summaries");
-
   const entries = Object.entries(summaries);
-  if (entries.length === 0) return;
 
-  const queries = entries.map(([fullName, cache]) => ({
-    sql: `INSERT INTO summaries (full_name, ai_intro, user_notes, intro_source, notes_source, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?)`,
-    params: [
-      fullName,
-      JSON.stringify(cache.aiIntro || {}),
-      JSON.stringify(cache.userNotes || {}),
-      cache._introSource || "",
-      cache._notesSource || "",
-      now,
-    ],
-  }));
+  if (entries.length === 0) {
+    await d1Query("DELETE FROM summaries");
+    return;
+  }
 
+  // Upsert all current entries
   let done = 0;
-  for (const q of queries) {
-    await d1Query(q.sql, q.params);
+  for (const [fullName, cache] of entries) {
+    await d1Query(
+      `INSERT OR REPLACE INTO summaries (full_name, ai_intro, user_notes, intro_source, notes_source, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        fullName,
+        JSON.stringify(cache.aiIntro || {}),
+        JSON.stringify(cache.userNotes || {}),
+        cache._introSource || "",
+        cache._notesSource || "",
+        now,
+      ]
+    );
     done++;
-    if (done % 50 === 0 || done === queries.length) {
-      console.log(`  D1 write: ${done}/${queries.length}`);
+    if (done % 50 === 0 || done === entries.length) {
+      console.log(`  D1 upsert: ${done}/${entries.length}`);
     }
+  }
+
+  // Remove stale rows no longer in summaries
+  const placeholders = entries.map(() => "?").join(",");
+  const stale = await d1Query(
+    `SELECT full_name FROM summaries WHERE full_name NOT IN (${placeholders})`,
+    entries.map(([name]) => name)
+  );
+  if (stale.length > 0) {
+    for (const row of stale) {
+      await d1Query("DELETE FROM summaries WHERE full_name = ?", [row.full_name]);
+    }
+    console.log(`  D1 pruned ${stale.length} stale row(s)`);
   }
 }

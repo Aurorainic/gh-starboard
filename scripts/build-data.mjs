@@ -170,7 +170,7 @@ function parseStarsMd() {
       continue;
     }
 
-    const h2Match = line.match(/^## \[(.+?)\]\(https:\/\/github\.com\/(.+?)\)/);
+    const h2Match = line.match(/^## \[(.+?)\]\((?:https?:\/\/)?github\.com\/(.+?)\)\s*$/i);
     if (h2Match) {
       if (currentRepo) {
         categoryMap[currentRepo] = {
@@ -178,7 +178,7 @@ function parseStarsMd() {
           notes: currentNotes.join("\n").trim(),
         };
       }
-      currentRepo = h2Match[1];
+      currentRepo = h2Match[1].replace(/\/+$/, "");
       currentNotes = [];
       continue;
     }
