@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { type StarEntry as StarEntryType, type Language } from "@/types";
@@ -5,6 +6,7 @@ import { ExternalLink, Star, Clock, Bot, Info } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useT } from "@/i18n/useTranslation";
+import { timeAgo } from "@/lib/timeAgo";
 
 interface StarEntryProps {
   entry: StarEntryType;
@@ -12,34 +14,19 @@ interface StarEntryProps {
   onTopicClick?: (topic: string) => void;
 }
 
-function timeAgo(date: string, language: string, justNowText: string) {
-  const now = Date.now();
-  const pushed = new Date(date).getTime();
-  const diff = now - pushed;
-  const seconds = Math.floor(diff / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-  const months = Math.floor(days / 30);
-  const years = Math.floor(days / 365);
-
-  const rtf = new Intl.RelativeTimeFormat(language, { numeric: "always", style: "narrow" });
-
-  if (minutes < 1) return justNowText;
-  if (hours < 1) return rtf.format(-minutes, "minute");
-  if (days < 1) return rtf.format(-hours, "hour");
-  if (months < 1) return rtf.format(-days, "day");
-  if (years < 1) return rtf.format(-months, "month");
-  return rtf.format(-years, "year");
-}
-
 export function StarEntry({ entry, language, onTopicClick }: StarEntryProps) {
   const { t } = useT();
+  const [topicsExpanded, setTopicsExpanded] = useState(false);
   const aiIntro = entry.aiIntro?.[language] || "";
   const intro = aiIntro || entry.description;
   const notes = entry.userNotes?.[language] || "";
   const pushedAgo = timeAgo(entry.pushedAt, language, t("time.justNow"));
+  const pushedTime = entry.pushedAt ? new Date(entry.pushedAt).getTime() : 0;
+  const daysSincePush = pushedTime ? Math.floor((Date.now() - pushedTime) / 86400000) : 0;
+  const staleClass = daysSincePush >= 365 ? "text-red-500" : daysSincePush >= 180 ? "text-yellow-500" : "";
   const isAiGenerated = !!aiIntro;
+  const visibleTopics = topicsExpanded ? entry.topics : entry.topics.slice(0, 5);
+  const hiddenCount = entry.topics.length - 5;
 
   return (
     <div className="rounded-lg border bg-card p-4 space-y-3">
@@ -64,12 +51,17 @@ export function StarEntry({ entry, language, onTopicClick }: StarEntryProps) {
 
       {/* Tags */}
       <div className="flex flex-wrap items-center gap-1.5">
+        {entry.archived && (
+          <Badge variant="outline" className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-0">
+            Archived
+          </Badge>
+        )}
         {entry.language && (
           <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-0">
             {entry.language}
           </Badge>
         )}
-        {entry.topics.slice(0, 5).map((topic) => (
+        {visibleTopics.map((topic) => (
           <Badge
             key={topic}
             variant="outline"
@@ -79,7 +71,15 @@ export function StarEntry({ entry, language, onTopicClick }: StarEntryProps) {
             {topic}
           </Badge>
         ))}
-        <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
+        {hiddenCount > 0 && (
+          <button
+            onClick={() => setTopicsExpanded(true)}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            +{hiddenCount}
+          </button>
+        )}
+        <span className={`ml-auto flex items-center gap-1 text-xs ${staleClass || "text-muted-foreground"}`}>
           <Clock className="h-3 w-3" />
           {pushedAgo}
         </span>

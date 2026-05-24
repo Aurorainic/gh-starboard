@@ -3,24 +3,63 @@
 > Turn your GitHub stars into a browsable, searchable, notes page.
 
 > [!IMPORTANT]
-> **All Codes Made by Generative AI**
+> **All Code Made by Generative AI**
 
 > [!NOTE]
 > This project is currently in the early stages of development.
 
 **English** | [简体中文](README_zh-CN.md) | [Live Demo](https://aurorainic.github.io/gh-starboard/)
 
+## Quick overview
+
+- Purpose: Build a static, multi-language site from your GitHub stars with handwritten Markdown notes and optional AI-generated summaries.
+- Data source: GitHub Stars (fetched via API) + `content/stars.md` for user notes
+- Output: Static site in `dist/` (deployable to GitHub Pages, Netlify, Vercel, etc.)
+
+## Table of contents
+
+- [GH-STARBOARD](#gh-starboard)
+  - [Quick overview](#quick-overview)
+  - [Table of contents](#table-of-contents)
+  - [Features](#features)
+  - [Quick start](#quick-start)
+    - [Local development](#local-development)
+  - [Daily usage](#daily-usage)
+  - [Customization](#customization)
+    - [Site title \& languages](#site-title--languages)
+    - [Content structure](#content-structure)
+  - [Deploy](#deploy)
+    - [GitHub Pages](#github-pages)
+    - [Other platforms Configuration](#other-platforms-configuration)
+  - [Configuration reference](#configuration-reference)
+  - [AI provider](#ai-provider)
+    - [D1 external cache (recommended)](#d1-external-cache-recommended)
+  - [Data pipeline](#data-pipeline)
+  - [Commands](#commands)
+  - [Tech stack](#tech-stack)
+  - [Contributing](#contributing)
+  - [Acknowledgments](#acknowledgments)
+  - [License](#license)
+
 ## Features
 
 - **Markdown Notes** — Write personal notes for starred repos in `content/stars.md`, organized by categories
 - **AI Auto Intro** — AI generates concise summaries for each repo in your preferred language, cached incrementally
-- **Smart Search** — Search by name, description, notes, or use `topic:` prefix for exact tag filtering
-- **Clickable Tags** — Click any topic badge to filter repos by that tag
-- **Bilingual** — English by default, with support for additional languages (e.g. Chinese). AI translates your notes automatically
+- **AI Smart Categorization** — Optionally auto-categorize uncategorized repos using AI (`AI_AUTO_CATEGORY=on`), with batch processing (5 repos per call) and automatic retry on failure
+- **AI UI Translation** — Build-time AI translation of UI texts for non-English/Chinese languages, stored in data layer
+- **Smart Search** — Search by name, description, notes, or use `topic:` prefix for exact tag filtering. 300ms debounce
+- **Advanced Filters** — Filter by language (multi-select), star count range (dual-thumb slider), category (dropdown single-select), with active filter badges
+- **Sorting** — Sort by star order, star count, last updated, or name
+- **Clickable Tags** — Click any topic badge to filter repos by that tag. Topics truncate at 5 with "+N more" expansion
+- **Archived Detection** — Yellow "Archived" badge on repos marked as archived by their owner
+- **Stale Repo Indicator** — Update time color-coded: yellow for 6+ months, red for 1+ year
+- **Multi-language** — English by default, support for arbitrary languages via `SITE_LANGUAGES`. AI translates notes and UI texts
 - **Responsive** — 1-column on mobile, 2-column grid on desktop
-- **D1 Cache** — Cloudflare D1 external cache for AI summaries (recommended), survives CI workspace resets. Falls back to local file if not configured
+- **D1 Cache** — Cloudflare D1 external cache for AI summaries and category translations (recommended), survives CI workspace resets. Falls back to local file if not configured
+- **Category Pagination** — Paginates by category groups, never splits a category across pages. Direct page-jump input
+- **Three-mode Theme** — Auto (system), dark, light. Anti-flash script in `index.html`
 
-## Quick Start
+## Quick start
 
 1. **Fork** this repository
 2. **Enable GitHub Actions** in your fork (Settings → Actions → Allow all actions)
@@ -31,7 +70,7 @@
 
 The site will be deployed to GitHub Pages automatically. For other platforms (Cloudflare Pages, Vercel, Netlify, etc.), import your fork and set the same environment variables.
 
-### Local Development
+### Local development
 
 ```bash
 cp .env.example .env.local
@@ -43,9 +82,9 @@ pnpm dev
 
 Open `http://localhost:5173` — your stars are ready to browse.
 
-> **Prerequisites**: Node.js 22+ and pnpm.
+> **Prerequisites**: Node.js 24+ and pnpm.
 
-## Daily Usage
+## Daily usage
 
 Edit `content/stars.md` to organize repos and write notes:
 
@@ -67,13 +106,15 @@ Run `pnpm run all` after editing to rebuild the dataset.
 
 ## Customization
 
-### Site Title & Languages
+### Site title & languages
 
 Edit `.env.local`:
 
 ```bash
 # Comma-separated language codes. First is default. "en" is always the base language.
-SITE_LANGUAGES=en,zh-CN
+# If you don't need multi-language, only keep the one you need — each extra language
+# triggers additional AI API calls, increasing build time and cost.
+SITE_LANGUAGES=en
 
 # Custom titles (JSON, keyed by language code). Leave empty for defaults.
 SITE_TITLE={"en":"My Stars","zh-CN":"我的星标"}
@@ -81,13 +122,21 @@ SITE_SUBTITLE={"en":"Bookmark & Note","zh-CN":"收藏即笔记"}
 
 # Toggle AI features
 AI_ENABLED=on
+
+# Auto-categorize uncategorized repos via AI (default: off)
+AI_AUTO_CATEGORY=on
+
+# Custom footer project URL (optional)
+PROJECT_URL=https://github.com/your-user/your-repo
 ```
 
-### Content Structure
+### Content structure
 
 The app auto-detects languages from `SITE_LANGUAGES`. For each language:
 - **AI intro** is generated for every repo
 - **Your notes** are stored raw for `zh-CN` (assumed to be your writing language) and auto-translated to all other languages
+- **UI texts** are auto-translated for non-English/Chinese languages at build time
+- **Category names** are translated and cached incrementally in D1 to avoid repeated API calls
 
 ## Deploy
 
@@ -97,11 +146,42 @@ Build the complete data + frontend in one pass:
 pnpm run all      # fetch stars → AI generate → vite build → dist/
 ```
 
-The `dist/` folder is a static site — deploy to any hosting provider (GitHub Pages, Cloudflare Pages, Vercel, Netlify, etc.).
+The `dist/` folder is a static site — deploy to any hosting provider.
+
+### GitHub Pages
 
 A [GitHub Actions workflow](.github/workflows/deploy.yml) is included for automated builds (push to `main`, daily schedule, or manual trigger). Set the required secrets in your repository settings.
 
-## Configuration Reference
+A [PR check workflow](.github/workflows/check.yml) runs typecheck + build on pull requests to `main`.
+
+### Other platforms Configuration
+
+<details>
+<summary>Netlify</summary>
+
+| Setting | Value |
+|---------|-------|
+| Build command | `pnpm run all` |
+| Publish directory | `dist` |
+
+> **Important**: Use `pnpm run all` (not `pnpm run build`) as the build command — it runs the full data pipeline (fetch stars + AI generate) before building the frontend. Also set `GH_TOKEN` and `GH_USERNAME` in Site settings > Environment variables.
+
+</details>
+
+<details>
+<summary>Cloudflare Pages</summary>
+
+| Setting | Value |
+|---------|-------|
+| Build command | `pnpm run all` |
+| Build output directory | `dist` |
+| Environment variable | `NODE_VERSION=24` |
+
+> **Important**: Use `pnpm run all` (not `pnpm run build`) as the build command. Set `GH_TOKEN`, `GH_USERNAME`, and other required variables in Settings > Environment variables.
+
+</details>
+
+## Configuration reference
 
 | Variable | Required | Description |
 |----------|----------|-------------|
@@ -110,36 +190,59 @@ A [GitHub Actions workflow](.github/workflows/deploy.yml) is included for automa
 | `AI_API_KEY` | No | AI API key (OpenAI-compatible) |
 | `AI_API_BASE_URL` | No | API base URL (default: `https://api.openai.com/v1`) |
 | `AI_MODEL` | No | Model name (default: `gpt-4o-mini`) |
-| `SITE_LANGUAGES` | No | Comma-separated language codes (default: `en`) |
+| `AI_ENABLED` | No | `on` / `off` (default: `on`) |
+| `AI_AUTO_CATEGORY` | No | `on` / off (default: off). Auto-categorize uncategorized repos via AI |
+| `SITE_LANGUAGES` | No | Comma-separated language codes (default: `en`). Only keep languages you need — each extra language adds AI calls |
 | `SITE_TITLE` | No | Custom site title, JSON keyed by language code |
 | `SITE_SUBTITLE` | No | Custom site subtitle, JSON keyed by language code |
-| `AI_ENABLED` | No | `on` / `off` (default: `on`) |
+| `PROJECT_URL` | No | Custom footer project URL |
+| `REFRESH_DAYS` | No | Scheduled refresh interval in days (default: 1). Repository variable |
 | `CLOUDFLARE_API_TOKEN` | Recommended | Cloudflare API token for D1 external cache |
 | `CLOUDFLARE_ACCOUNT_ID` | Recommended | Cloudflare account ID |
 | `D1_DATABASE_ID` | Recommended | D1 database ID |
 
-## AI Provider
+## AI provider
 
 > [!TIP]
 > AI summaries and user note translation consume API tokens; please choose a cheap model.
 
-The built-in AI provider calls any OpenAI-compatible API. Two functions to customize in `scripts/ai-provider.mjs`:
+The built-in AI provider calls any OpenAI-compatible API. Six exported functions in `scripts/ai-provider.mjs`:
 
 ```js
-export async function generateIntro(language, repoName, repoDescription) {
-  // Return a 50-100 word summary in the requested language
-}
+export async function generateIntro(language, repoName, repoDescription)
+// Generate a 50-100 word repo summary in the requested language
 
-export async function translateText(text, targetLanguage) {
-  // Translate Chinese Markdown text to the target language, preserving Markdown formatting
-}
+export async function generateIntroAndCategory(language, repoName, repoDescription, repoTopics, repoLanguage, existingCategories)
+// Generate intro + category suggestion in one API call. Returns { intro, category }
+
+export async function translateText(text, targetLanguage, sourceLanguage)
+// Translate Markdown text preserving formatting
+
+export async function suggestCategory(repoName, description, topics, language, existingCategories)
+// Category suggestion fallback for repos with cached intros but missing category
+
+export async function batchSuggestCategories(repos, existingCategories)
+// Batch categorization (5 repos per call) with automatic retry on failure
+
+export async function translateUITexts(texts, targetLanguage)
+// Batch-translate UI key-value pairs, preserving {variable} placeholders
+
+export async function healthCheck(retries)
+// Verify AI provider connectivity
 ```
 
 Results are cached incrementally — only new repos trigger API calls. Un-starred repos are auto-pruned from cache. Set `AI_ENABLED=off` to skip AI entirely and fall back to GitHub descriptions.
 
-### D1 External Cache (Recommended)
+**Smart cache invalidation**: Category cache is preserved even when repo description changes, avoiding unnecessary re-categorization.
+
+### D1 external cache (recommended)
 
 [Cloudflare D1](https://developers.cloudflare.com/d1/) is the recommended cache backend. The build pipeline connects to D1, reads the cache, processes only new/changed repos, and writes the updated cache back. This ensures the cache persists across CI workspace resets — no need to regenerate AI summaries from scratch on every build.
+
+D1 cache now includes:
+- AI-generated intros (per language)
+- User notes translations (per language)
+- **Category translations** (per language, incrementally cached to avoid repeated API calls)
 
 Without D1, the cache falls back to a local `content/summaries.json` file, which is lost when the CI workspace is ephemeral.
 
@@ -159,40 +262,24 @@ wrangler login
 wrangler d1 create gh-starboard-cache
 ```
 
-Output:
-
-```
-✅ Successfully created DB 'gh-starboard-cache'
-
-[[d1_databases]]
-binding = "DB"
-database_name = "gh-starboard-cache"
-database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-```
-
-Save the `database_id` — you'll need it later.
+Save the `database_id` from the output.
 
 **3. Find your Account ID**
 
-In the [Cloudflare Dashboard](https://dash.cloudflare.com), your Account ID is displayed in the right sidebar of any domain's overview page. It's a 32-character hex string.
+In the [Cloudflare Dashboard](https://dash.cloudflare.com), your Account ID is displayed in the right sidebar of any domain's overview page.
 
 **4. Create an API Token**
 
-Go to [Cloudflare API Tokens](https://dash.cloudflare.com/profile/api-tokens) → Create Token → use the "Edit zone DNS" template or create a custom token with:
-
-- Permissions: `D1:Edit`
-- Account: select your account
-
-Copy the token — it's shown only once.
+Go to [Cloudflare API Tokens](https://dash.cloudflare.com/profile/api-tokens) → Create Token → custom token with `D1:Edit` permission for your account.
 
 **5. Set environment variables**
 
-Add `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `D1_DATABASE_ID` to your `.env.local` (local dev) or hosting platform secrets (CI/CD). See [Configuration Reference](#configuration-reference).
+Add `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `D1_DATABASE_ID` to `.env.local` or hosting platform secrets.
 
 **6. Initialize and seed**
 
 ```bash
-pnpm run d1-migrate    # Create tables
+pnpm run d1-migrate    # Create tables (auto-migrates existing tables)
 pnpm run d1-seed       # Import existing summaries.json (if any)
 ```
 
@@ -200,7 +287,7 @@ Done. Subsequent `pnpm run all` builds will use D1 automatically.
 
 </details>
 
-## Data Pipeline
+## Data pipeline
 
 ```
 fetch-stars.mjs  ──►  public/data/stars.json
@@ -208,7 +295,10 @@ fetch-stars.mjs  ──►  public/data/stars.json
 build-data.mjs            │
 ├── Parse content/stars.md (categories + notes)
 ├── Read AI cache ← D1 external / summaries.json (fallback)
-├── For missing repos: call AI provider (intro + translation)
+├── For missing repos: generate intro + category in one AI call
+├── For cached repos missing category: batch categorization (5 per call)
+├── AI translate UI texts for non-en/zh-CN languages
+├── Translate category names (cached incrementally in D1)
 ├── Prune un-starred repos from cache
 ├── Write AI cache → D1 / summaries.json
 └── Merge  ──►  public/data/merged.json
@@ -222,15 +312,39 @@ build-data.mjs            │
 |---------|-------------|
 | `pnpm dev` | Start dev server (localhost:5173) |
 | `pnpm build` | TypeScript check + production build |
+| `pnpm typecheck` | TypeScript check only |
+| `pnpm test` | Run Vitest tests |
 | `pnpm run fetch-stars` | Fetch latest stars from GitHub API |
 | `pnpm run build-data` | Parse notes + AI generate + merge |
 | `pnpm run all` | fetch → build-data → build in one pass |
-| `pnpm run d1-migrate` | Initialize D1 tables |
+| `pnpm run d1-migrate` | Initialize D1 tables (auto-migrates existing tables) |
 | `pnpm run d1-seed` | Seed D1 from local summaries.json (one-time) |
+| `pnpm run d1-clear` | Clear all D1 cache |
+| `pnpm run d1-clear-categories` | Clear only category cache columns |
+| `pnpm run d1-sync` | Sync local summaries.json to D1 |
 
-## Tech Stack
+## Tech stack
 
-React 18 + TypeScript + Vite + Tailwind CSS v3 + shadcn/ui + react-markdown + remark-gfm
+| Layer | Choice |
+|-------|--------|
+| Framework | React 18 + TypeScript + Vite |
+| Styling | Tailwind CSS v3 + shadcn/ui (New York) |
+| Rendering | react-markdown + remark-gfm |
+| i18n | Custom lightweight Context + AI dynamic translation |
+| AI | OpenAI-compatible API (DeepSeek, etc.) |
+| Theme | auto / dark / light with anti-flash |
+| Cache | Cloudflare D1 (build-time external) / local file (fallback) |
+| Testing | Vitest + @testing-library/react |
+| Deploy | GitHub Pages + GitHub Actions (push / daily / manual) |
+
+## Contributing
+
+- Issues and PRs are welcome. Keep changes focused and include a short description of intent.
+- When updating docs, keep English and Chinese versions aligned.
+
+## Acknowledgments
+
+UI design inspired by [selfh.st.](https://selfh.st/apps/)
 
 ## License
 

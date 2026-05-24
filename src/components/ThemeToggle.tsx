@@ -1,5 +1,6 @@
 import { Monitor, Moon, Sun, Check } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
+import { useT } from "@/i18n/useTranslation";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -7,14 +8,15 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 
-const themeOptions = [
-  { value: "auto" as const, icon: Monitor, label: "Auto" },
-  { value: "dark" as const, icon: Moon, label: "Dark" },
-  { value: "light" as const, icon: Sun, label: "Light" },
-];
-
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
+  const { t } = useT();
+
+  const themeOptions = [
+    { value: "auto" as const, icon: Monitor, label: t("theme.auto") },
+    { value: "dark" as const, icon: Moon, label: t("theme.dark") },
+    { value: "light" as const, icon: Sun, label: t("theme.light") },
+  ];
   const CurrentIcon =
     themeOptions.find((o) => o.value === theme)?.icon ?? Monitor;
 

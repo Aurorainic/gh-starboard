@@ -50,7 +50,8 @@ async function fetchAllStars() {
         language: repo.language ?? "",
         topics: repo.topics ?? [],
         stargazersCount: repo.stargazers_count ?? 0,
-        pushedAt: repo.pushed_at,
+        pushedAt: repo.pushed_at ?? "",
+        archived: repo.archived ?? false,
       }))
     );
     if (stars.length < PER_PAGE) break;

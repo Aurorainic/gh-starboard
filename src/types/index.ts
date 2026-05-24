@@ -6,6 +6,7 @@ export interface StarEntry {
   topics: string[];
   stargazersCount: number;
   pushedAt: string;
+  archived: boolean;
   category: string;
   aiIntro: Record<string, string>;
   userNotes: Record<string, string>;
@@ -16,6 +17,7 @@ export interface SiteConfig {
   subtitle: Record<string, string>;
   languages: string[];
   aiEnabled: boolean;
+  projectUrl: string;
 }
 
 export interface MergedData {
@@ -25,6 +27,7 @@ export interface MergedData {
   lastUpdated: string;
   siteConfig: SiteConfig;
   languages: string[];
+  aiCategories: string[];
 }
 
 export type Language = string;

@@ -1,24 +1,32 @@
 {
   "name": "gh-starboard",
   "private": true,
-  "version": "0.1",
+  "version": "0.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "preview": "vite preview",
     "fetch-stars": "node scripts/fetch-stars.mjs",
     "build-data": "node scripts/build-data.mjs",
     "all": "node scripts/fetch-stars.mjs && node scripts/build-data.mjs && vite build",
     "d1-migrate": "node scripts/d1-migrate.mjs",
-    "d1-seed": "node scripts/d1-migrate.mjs --seed"
+    "d1-seed": "node scripts/d1-migrate.mjs --seed",
+    "d1-clear": "node scripts/d1-migrate.mjs --clear",
+    "d1-clear-categories": "node scripts/d1-migrate.mjs --clear-categories",
+    "d1-sync": "node scripts/d1-migrate.mjs --sync"
   },
   "dependencies": {
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-scroll-area": "^1.2.3",
     "@radix-ui/react-separator": "^1.1.2",
+    "@radix-ui/react-slider": "^1.3.6",
     "@radix-ui/react-slot": "^1.1.2",
     "@radix-ui/react-tooltip": "^1.2.8",
+    "@tailwindcss/typography": "^0.5.19",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.468.0",
@@ -30,14 +38,19 @@
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^25.8.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
+    "jsdom": "^29.1.1",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.16",
     "typescript": "^5.7.2",
-    "vite": "^6.0.3"
+    "vite": "^6.0.3",
+    "vitest": "^4.1.7"
   }
 }
